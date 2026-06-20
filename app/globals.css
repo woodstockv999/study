@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  @apply bg-slate-50 text-slate-800 antialiased;
+}
+
+/* react-markdown 用の最小限タイポグラフィ（白基調・落ち着いたビジネス系） */
+.md h1,
+.md h2,
+.md h3 {
+  @apply font-semibold text-slate-900;
+}
+.md h1 {
+  @apply text-xl mt-4 mb-2;
+}
+.md h2 {
+  @apply text-lg mt-5 mb-2 pb-1 border-b border-slate-200;
+}
+.md h3 {
+  @apply text-base mt-3 mb-1 text-accent;
+}
+.md p {
+  @apply my-2 leading-relaxed;
+}
+.md ul {
+  @apply list-disc pl-5 my-2 space-y-1;
+}
+.md ol {
+  @apply list-decimal pl-5 my-2 space-y-1;
+}
+.md a {
+  @apply text-accent underline underline-offset-2 break-words;
+}
+.md strong {
+  @apply font-semibold text-slate-900;
+}
+.md code {
+  @apply bg-slate-100 px-1 py-0.5 rounded text-sm;
+}
+.md blockquote {
+  @apply border-l-4 border-slate-200 pl-3 text-slate-600 italic my-2;
+}
