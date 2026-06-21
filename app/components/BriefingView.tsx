@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Markdown from "./Markdown";
 import type { Level } from "@/lib/prompts";
+import { apiUrl } from "@/lib/config";
 
 interface Props {
   industry: string;
@@ -33,7 +34,7 @@ export default function BriefingView({
     setDeepError("");
     setDeepResult("");
     try {
-      const res = await fetch("/api/deepdive", {
+      const res = await fetch(apiUrl("/api/deepdive"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ term: t, industry }),

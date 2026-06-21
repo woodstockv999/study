@@ -7,6 +7,7 @@ import Quiz from "./components/Quiz";
 import HistorySidebar from "./components/HistorySidebar";
 import type { QuizQuestion } from "./api/quiz/route";
 import { type Level } from "@/lib/prompts";
+import { apiUrl } from "@/lib/config";
 import {
   addBriefing,
   deleteBriefing,
@@ -67,7 +68,7 @@ export default function Home() {
     setQuizError("");
     setCurrent(null);
     try {
-      const res = await fetch("/api/briefing", {
+      const res = await fetch(apiUrl("/api/briefing"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ industry: ind, level }),
@@ -91,7 +92,7 @@ export default function Home() {
     setQuizError("");
     setQuiz(null);
     try {
-      const res = await fetch("/api/quiz", {
+      const res = await fetch(apiUrl("/api/quiz"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ briefing: current.text }),
