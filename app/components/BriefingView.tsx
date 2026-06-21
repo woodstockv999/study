@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Markdown from "./Markdown";
 import type { Level } from "@/lib/prompts";
-import { apiUrl } from "@/lib/config";
+import { postStream } from "@/lib/config";
 
 interface Props {
   industry: string;
@@ -34,13 +34,10 @@ export default function BriefingView({
     setDeepError("");
     setDeepResult("");
     try {
-      const res = await fetch(apiUrl("/api/deepdive"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ term: t, industry }),
+      const data = await postStream<{ text: string }>("/api/deepdive", {
+        term: t,
+        industry,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "深掘りに失敗しました。");
       setDeepResult(data.text);
     } catch (e: any) {
       setDeepError(e.message);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generate } from "@/lib/llm";
 import { buildQuizPrompt } from "@/lib/prompts";
+import { ndjsonHeartbeat } from "@/lib/stream";
 
 export const maxDuration = 120;
 export const runtime = "nodejs";
@@ -25,15 +26,15 @@ function extractJson(raw: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const { briefing } = (await req.json()) as { briefing?: string };
-    if (!briefing) {
-      return NextResponse.json(
-        { error: "briefing 本文が必要です。" },
-        { status: 400 }
-      );
-    }
+  const { briefing } = (await req.json()) as { briefing?: string };
+  if (!briefing) {
+    return NextResponse.json(
+      { error: "briefing 本文が必要です。" },
+      { status: 400 }
+    );
+  }
 
+  return ndjsonHeartbeat(async () => {
     const prompt = buildQuizPrompt(briefing);
     const raw = await generate(prompt, { webSearch: false, maxTokens: 1500 });
 
@@ -41,25 +42,13 @@ export async function POST(req: NextRequest) {
     try {
       parsed = JSON.parse(extractJson(raw));
     } catch {
-      return NextResponse.json(
-        { error: "クイズの生成結果を解析できませんでした。もう一度お試しください。" },
-        { status: 502 }
+      throw new Error(
+        "クイズの生成結果を解析できませんでした。もう一度お試しください。"
       );
     }
-
     if (!parsed?.questions?.length) {
-      return NextResponse.json(
-        { error: "クイズを生成できませんでした。" },
-        { status: 502 }
-      );
+      throw new Error("クイズを生成できませんでした。");
     }
-
-    return NextResponse.json({ questions: parsed.questions });
-  } catch (err: any) {
-    console.error("[quiz] error:", err);
-    return NextResponse.json(
-      { error: err?.message || "クイズ生成に失敗しました。" },
-      { status: 500 }
-    );
-  }
+    return { questions: parsed.questions };
+  });
 }

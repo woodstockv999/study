@@ -7,7 +7,7 @@ import Quiz from "./components/Quiz";
 import HistorySidebar from "./components/HistorySidebar";
 import type { QuizQuestion } from "./api/quiz/route";
 import { type Level } from "@/lib/prompts";
-import { apiUrl } from "@/lib/config";
+import { postStream } from "@/lib/config";
 import {
   addBriefing,
   deleteBriefing,
@@ -68,13 +68,10 @@ export default function Home() {
     setQuizError("");
     setCurrent(null);
     try {
-      const res = await fetch(apiUrl("/api/briefing"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ industry: ind, level }),
+      const data = await postStream<{ text: string }>("/api/briefing", {
+        industry: ind,
+        level,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "生成に失敗しました。");
 
       const next = addBriefing({ industry: ind, level, text: data.text });
       setHistory(next);
@@ -92,13 +89,10 @@ export default function Home() {
     setQuizError("");
     setQuiz(null);
     try {
-      const res = await fetch(apiUrl("/api/quiz"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ briefing: current.text }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "クイズ生成に失敗しました。");
+      const data = await postStream<{ questions: QuizQuestion[] }>(
+        "/api/quiz",
+        { briefing: current.text }
+      );
       setQuiz(data.questions);
     } catch (e: any) {
       setQuizError(e.message);
