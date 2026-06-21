@@ -8,6 +8,80 @@ export function apiUrl(path: string): string {
 }
 
 /**
+ * バックグラウンドジョブを開始し、jobId を返す。
+ * サーバー側は Safari が閉じても処理を継続する。
+ */
+export async function startJob(path: string, body: unknown): Promise<string> {
+  let res: Response;
+  try {
+    res = await fetch(apiUrl(path), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error("通信に失敗しました。ネットワーク接続を確認してください。");
+  }
+  if (!res.ok) {
+    let message = "通信に失敗しました。";
+    try {
+      const data = await res.json();
+      if (data?.error) message = data.error;
+    } catch { /* ignore */ }
+    throw new Error(message);
+  }
+  const { jobId } = await res.json();
+  return jobId as string;
+}
+
+const POLL_INTERVAL_MS = 3_000;
+// ジョブの有効期限（1時間）に余裕をもたせた最大ポーリング時間
+const POLL_MAX_MS = 55 * 60 * 1000;
+
+/**
+ * ステータスエンドポイントを定期的に叩き、ジョブ完了まで待って data を返す。
+ * Safari を閉じた後に再開しても、jobId が残っていれば続きからポーリングできる。
+ */
+export async function pollJob<T>(
+  statusPath: string,
+  jobId: string,
+  signal?: AbortSignal
+): Promise<T> {
+  const deadline = Date.now() + POLL_MAX_MS;
+
+  while (Date.now() < deadline) {
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+
+    await new Promise<void>((r) => setTimeout(r, POLL_INTERVAL_MS));
+
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+
+    let res: Response;
+    try {
+      res = await fetch(
+        apiUrl(`${statusPath}?jobId=${encodeURIComponent(jobId)}`),
+        { signal }
+      );
+    } catch (e: any) {
+      if (e?.name === "AbortError") throw e;
+      continue; // ネットワーク一時エラーはスキップして再試行
+    }
+
+    if (res.status === 404) {
+      throw new Error("処理結果が見つかりません。もう一度作成してください。");
+    }
+    if (!res.ok) continue; // 一時的なサーバーエラーはスキップ
+
+    const job = await res.json();
+    if (job.status === "done") return job.data as T;
+    if (job.status === "error") throw new Error(job.error || "処理に失敗しました。");
+    // "pending" → 次のループへ
+  }
+
+  throw new Error("タイムアウトしました。もう一度お試しください。");
+}
+
+/**
  * NDJSON ハートビート・ストリーミング応答を受け取り、最終 result を返す。
  * ping 行は無視し、result/error を解釈する。
  * （長時間処理でも接続が切れない＝iOS Safari の ~60 秒打ち切り対策）
