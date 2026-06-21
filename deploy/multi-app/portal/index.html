@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#4f46e5" />
+    <title>アプリ選択 — マイVPS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-slate-50 text-slate-800 antialiased">
+    <div class="max-w-3xl mx-auto px-4 py-10 sm:py-14">
+      <header class="mb-8">
+        <h1 class="text-2xl font-bold text-slate-900">アプリ選択</h1>
+        <p class="text-sm text-slate-500 mt-1">
+          このサーバーで動いているアプリを選んでください。
+        </p>
+      </header>
+
+      <!-- カードの差し込み先 -->
+      <div id="apps" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+
+      <footer class="mt-12 text-center text-xs text-slate-400">
+        個人用VPS ・ http で公開中
+      </footer>
+    </div>
+
+    <script>
+      // ─────────────────────────────────────────────────────────
+      //  アプリ一覧。新しいアプリを足すときは、この配列に1件追加するだけ。
+      //    path   : nginx で振り分けるパス（/briefing 等）
+      //    status : "live"（公開中・押せる） / "soon"（準備中・押せない）
+      // ─────────────────────────────────────────────────────────
+      const APPS = [
+        {
+          name: "業界ブリーフィング Bot",
+          desc: "担当業界のトレンド・用語・論点を毎日5分でキャッチアップ。",
+          path: "/briefing",
+          emoji: "📰",
+          status: "live",
+        },
+        // 例：新しいアプリを足すときのテンプレ（status を "live" にすると有効化）
+        // {
+        //   name: "新しいアプリ",
+        //   desc: "説明文。",
+        //   path: "/myapp",
+        //   emoji: "🧩",
+        //   status: "soon",
+        // },
+      ];
+
+      const wrap = document.getElementById("apps");
+      for (const app of APPS) {
+        const live = app.status === "live";
+        const el = document.createElement(live ? "a" : "div");
+        if (live) el.href = app.path;
+        el.className =
+          "block rounded-xl border bg-white p-5 shadow-sm transition " +
+          (live
+            ? "border-slate-200 hover:border-indigo-500 hover:shadow-md cursor-pointer"
+            : "border-dashed border-slate-300 opacity-60 cursor-not-allowed");
+        el.innerHTML = `
+          <div class="flex items-start gap-3">
+            <div class="text-2xl">${app.emoji || "📦"}</div>
+            <div class="min-w-0">
+              <div class="font-semibold text-slate-900 flex items-center gap-2">
+                ${app.name}
+                ${
+                  live
+                    ? ""
+                    : '<span class="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">準備中</span>'
+                }
+              </div>
+              <p class="text-sm text-slate-500 mt-1">${app.desc || ""}</p>
+              ${
+                live
+                  ? `<div class="text-xs text-indigo-600 mt-2">${app.path} →</div>`
+                  : ""
+              }
+            </div>
+          </div>`;
+        wrap.appendChild(el);
+      }
+    </script>
+  </body>
+</html>
