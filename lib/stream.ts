@@ -15,6 +15,9 @@ export function ndjsonHeartbeat<T>(work: () => Promise<T>): Response {
       const send = (obj: unknown) =>
         controller.enqueue(encoder.encode(JSON.stringify(obj) + "\n"));
 
+      // 接続確立直後に即座に送信し、nginx/Safari のタイムアウト前にデータを届ける
+      send({ type: "ping" });
+
       let finished = false;
       const ping = setInterval(() => {
         if (!finished) {
