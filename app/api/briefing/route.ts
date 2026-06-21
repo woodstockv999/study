@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generate } from "@/lib/llm";
 import { buildBriefingPrompt, type Level } from "@/lib/prompts";
-import { ndjsonHeartbeat } from "@/lib/stream";
+import { createJob, resolveJob, rejectJob } from "@/lib/jobs";
 
 // Web 検索は時間がかかるためサーバー実行を長めに許可
 export const maxDuration = 300;
@@ -20,10 +20,19 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 数十秒かかるためハートビート付きストリーミングで返す（モバイル接続維持）
-  return ndjsonHeartbeat(async () => {
-    const prompt = buildBriefingPrompt(industry, level);
-    const text = await generate(prompt, { webSearch: true, maxTokens: 2048 });
-    return { text };
-  });
+  const jobId = createJob();
+
+  // クライアント（Safari）が切断しても処理が止まらないよう、
+  // レスポンスを先に返してから非同期でジョブを実行する
+  void (async () => {
+    try {
+      const prompt = buildBriefingPrompt(industry, level);
+      const text = await generate(prompt, { webSearch: true, maxTokens: 2048 });
+      resolveJob(jobId, { text });
+    } catch (err: any) {
+      rejectJob(jobId, err?.message || "処理に失敗しました。");
+    }
+  })();
+
+  return NextResponse.json({ jobId });
 }

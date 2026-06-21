@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import IndustryPicker, { CUSTOM } from "./components/IndustryPicker";
 import BriefingView from "./components/BriefingView";
 import Quiz from "./components/Quiz";
 import HistorySidebar from "./components/HistorySidebar";
 import type { QuizQuestion } from "./api/quiz/route";
 import { type Level } from "@/lib/prompts";
-import { postStream } from "@/lib/config";
+import { postStream, startJob, pollJob } from "@/lib/config";
 import {
   addBriefing,
   deleteBriefing,
@@ -16,6 +16,9 @@ import {
   saveSettings,
   type BriefingRecord,
 } from "@/lib/storage";
+
+const PENDING_JOB_KEY = "briefing.pending_job.v1";
+interface PendingJob { jobId: string; industry: string; level: Level }
 
 export default function Home() {
   // 選択状態
@@ -36,6 +39,9 @@ export default function Home() {
   // 履歴
   const [history, setHistory] = useState<BriefingRecord[]>([]);
 
+  // 進行中のポーリングをキャンセルするための ref
+  const pollAbortRef = useRef<AbortController | null>(null);
+
   // 初期ロード（localStorage）
   useEffect(() => {
     setHistory(loadHistory());
@@ -45,6 +51,39 @@ export default function Home() {
       setCustomIndustry(s.customIndustry);
       setLevel(s.level);
     }
+
+    // Safari を閉じた後に再開した際、処理中ジョブがあれば自動でポーリング再開
+    const raw = localStorage.getItem(PENDING_JOB_KEY);
+    if (!raw) return;
+    let pending: PendingJob;
+    try {
+      pending = JSON.parse(raw);
+    } catch {
+      localStorage.removeItem(PENDING_JOB_KEY);
+      return;
+    }
+
+    setIndustry(pending.industry);
+    setLevel(pending.level);
+    setLoading(true);
+
+    const controller = new AbortController();
+    pollAbortRef.current = controller;
+    pollJob<{ text: string }>("/api/briefing/status", pending.jobId, controller.signal)
+      .then((data) => {
+        localStorage.removeItem(PENDING_JOB_KEY);
+        const next = addBriefing({ industry: pending.industry, level: pending.level, text: data.text });
+        setHistory(next);
+        setCurrent(next[0]);
+      })
+      .catch((e: any) => {
+        if (e?.name === "AbortError") return;
+        localStorage.removeItem(PENDING_JOB_KEY);
+        setError(e.message);
+      })
+      .finally(() => setLoading(false));
+
+    return () => controller.abort();
   }, []);
 
   // 設定の永続化
@@ -62,21 +101,32 @@ export default function Home() {
       setError("業界を選択または入力してください。");
       return;
     }
+
+    // 既存のポーリングをキャンセルしてから新規ジョブを開始
+    pollAbortRef.current?.abort();
+    const controller = new AbortController();
+    pollAbortRef.current = controller;
+
     setLoading(true);
     setError("");
     setQuiz(null);
     setQuizError("");
     setCurrent(null);
     try {
-      const data = await postStream<{ text: string }>("/api/briefing", {
-        industry: ind,
-        level,
-      });
+      // サーバー側ジョブを起動（Safari を閉じても処理は継続）
+      const jobId = await startJob("/api/briefing", { industry: ind, level });
+      localStorage.setItem(PENDING_JOB_KEY, JSON.stringify({ jobId, industry: ind, level } satisfies PendingJob));
+
+      // 3秒おきにステータスをポーリング
+      const data = await pollJob<{ text: string }>("/api/briefing/status", jobId, controller.signal);
+      localStorage.removeItem(PENDING_JOB_KEY);
 
       const next = addBriefing({ industry: ind, level, text: data.text });
       setHistory(next);
       setCurrent(next[0]);
     } catch (e: any) {
+      if (e?.name === "AbortError") return;
+      localStorage.removeItem(PENDING_JOB_KEY);
       setError(e.message);
     } finally {
       setLoading(false);
@@ -142,8 +192,15 @@ export default function Home() {
           />
 
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+              <span>{error}</span>
+              <button
+                type="button"
+                onClick={generate}
+                className="shrink-0 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium px-3 py-1.5 transition"
+              >
+                再試行
+              </button>
             </div>
           )}
 
