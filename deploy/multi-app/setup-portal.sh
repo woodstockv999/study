@@ -32,12 +32,18 @@ echo "==> nginx 構文チェック & リロード"
 nginx -t
 systemctl reload nginx
 
-echo "==> briefing-bot を /briefing 配下でビルドし直し"
+echo "==> briefing-bot を /briefing 配下でビルド＆起動"
 cd "$REPO_DIR"
-NEXT_BASE_PATH=/briefing npm run build
+# 重要: NEXT_BASE_PATH は build 時だけでなく `next start` 実行時の環境にも
+# 必要（next start は実行時に next.config を再評価するため）。
+# そのため export してビルドし、pm2 プロセスも作り直して env を確実に注入する。
+export NEXT_BASE_PATH=/briefing
+npm run build
 
-echo "==> pm2 再起動（basePath 反映）"
-pm2 restart briefing-bot --update-env || pm2 start ecosystem.config.js
+echo "==> pm2 プロセスを env 付きで作り直し（basePath を runtime に反映）"
+pm2 delete briefing-bot >/dev/null 2>&1 || true
+pm2 start npm --name briefing-bot -- run start
+pm2 save
 
 cat <<'EOF'
 
