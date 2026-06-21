@@ -33,10 +33,14 @@ bash deploy/multi-app/setup-portal.sh
 # 例: リポジトリを /opt/myapp に置く
 cd /opt/myapp
 npm ci
-NEXT_BASE_PATH=/myapp npm run build          # ← basePath を付けてビルド
-pm2 start node_modules/next/dist/bin/next --name myapp -- start -p 3001
+# basePath は build と start の両方で必要。export して両方に効かせる。
+export NEXT_BASE_PATH=/myapp
+npm run build
+pm2 start npm --name myapp -- run start -- -p 3001
 pm2 save
 ```
+> ※ `next start` は起動時に next.config を再評価するので、`NEXT_BASE_PATH` を
+> pm2 プロセスの環境にも入れること（`export` 済みのシェルから `pm2 start` する）。
 > Next.js 以外（素のWebサーバ等）でも、`/myapp` 配下で動き、3001番で待ち受ければOK。
 
 **② nginx にブロックを1つ追記**
@@ -81,6 +85,10 @@ nginx -t && systemctl reload nginx
 | /（例）   | 3002 | （空き） | - |
 
 ## 注意
-- **basePath はビルド時に焼き込まれる**。`/briefing` を保ちたいので、ブリーフィングを後で再ビルドする際は必ず
-  `NEXT_BASE_PATH=/briefing npm run build` を使うこと（`setup-portal.sh` はこれを内包）。
+- **basePath はビルド時とランタイム両方で `NEXT_BASE_PATH` が必要**。
+  `next start` は起動時に `next.config.mjs` を再評価するため、ビルドだけでなく
+  **pm2 で `next start` を動かすプロセスの環境変数**にも入れること。
+  `setup-portal.sh` は `export NEXT_BASE_PATH=/briefing` した上で
+  `pm2 start npm ... -- run start` でプロセスを作り直し、`pm2 save` で保存する。
+  （`.env.local` に入れるだけでは `next start` の config 評価に反映されない点に注意）
 - HTTP公開のため、IPを知る誰でもアクセス可能。施錠したい場合は Basic認証・IP制限・独自ドメイン+HTTPS を検討。
