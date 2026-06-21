@@ -16,11 +16,17 @@ export async function postStream<T = any>(
   path: string,
   body: unknown
 ): Promise<T> {
-  const res = await fetch(apiUrl(path), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(apiUrl(path), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    // Safari: "Load failed" / Chrome: "Failed to fetch" などネットワーク系エラー
+    throw new Error("通信が中断されました。ネットワーク接続を確認してから再試行してください。");
+  }
 
   // 入力検証エラー等（ストリーム前の 4xx/5xx）は通常の JSON で返る
   if (!res.ok || !res.body) {
@@ -39,30 +45,37 @@ export async function postStream<T = any>(
   let buffer = "";
   let result: T | undefined;
 
-  // NDJSON を行単位で処理
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
+  try {
+    // NDJSON を行単位で処理
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
 
-    let nl: number;
-    while ((nl = buffer.indexOf("\n")) >= 0) {
-      const line = buffer.slice(0, nl).trim();
-      buffer = buffer.slice(nl + 1);
-      if (!line) continue;
+      let nl: number;
+      while ((nl = buffer.indexOf("\n")) >= 0) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (!line) continue;
 
-      let msg: any;
-      try {
-        msg = JSON.parse(line);
-      } catch {
-        continue; // 不完全な行は読み飛ばす
+        let msg: any;
+        try {
+          msg = JSON.parse(line);
+        } catch {
+          continue; // 不完全な行は読み飛ばす
+        }
+
+        if (msg.type === "result") result = msg.data as T;
+        else if (msg.type === "error") throw new Error(msg.error || "処理に失敗しました。");
+        // type === "ping" は無視
       }
-
-      if (msg.type === "result") result = msg.data as T;
-      else if (msg.type === "error") throw new Error(msg.error || "処理に失敗しました。");
-      // type === "ping" は無視
     }
+  } catch (e: any) {
+    // result が確定済みならストリーム末尾の切断は無視
+    if (result !== undefined) return result;
+    // Safari がバックグラウンドで接続を切った場合等
+    throw new Error("通信が途中で中断されました。再試行してください。");
   }
 
   if (result === undefined) {
