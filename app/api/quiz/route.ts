@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generate } from "@/lib/llm";
 import { buildQuizPrompt } from "@/lib/prompts";
-import { ndjsonHeartbeat } from "@/lib/stream";
+import { createJob, resolveJob, rejectJob } from "@/lib/jobs";
 
 export const maxDuration = 120;
 export const runtime = "nodejs";
@@ -34,21 +34,31 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return ndjsonHeartbeat(async () => {
-    const prompt = buildQuizPrompt(briefing);
-    const raw = await generate(prompt, { webSearch: false, maxTokens: 1500 });
+  const jobId = createJob();
 
-    let parsed: { questions: QuizQuestion[] };
+  // クライアント（Safari）が切断しても処理が止まらないよう、
+  // レスポンスを先に返してから非同期でジョブを実行する
+  void (async () => {
     try {
-      parsed = JSON.parse(extractJson(raw));
-    } catch {
-      throw new Error(
-        "クイズの生成結果を解析できませんでした。もう一度お試しください。"
-      );
+      const prompt = buildQuizPrompt(briefing);
+      const raw = await generate(prompt, { webSearch: false, maxTokens: 1500 });
+
+      let parsed: { questions: QuizQuestion[] };
+      try {
+        parsed = JSON.parse(extractJson(raw));
+      } catch {
+        throw new Error(
+          "クイズの生成結果を解析できませんでした。もう一度お試しください。"
+        );
+      }
+      if (!parsed?.questions?.length) {
+        throw new Error("クイズを生成できませんでした。");
+      }
+      resolveJob(jobId, { questions: parsed.questions });
+    } catch (err: any) {
+      rejectJob(jobId, err?.message || "処理に失敗しました。");
     }
-    if (!parsed?.questions?.length) {
-      throw new Error("クイズを生成できませんでした。");
-    }
-    return { questions: parsed.questions };
-  });
+  })();
+
+  return NextResponse.json({ jobId });
 }
