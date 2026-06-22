@@ -40,10 +40,12 @@ cd "$REPO_DIR"
 export NEXT_BASE_PATH=/briefing
 npm run build
 
-echo "==> pm2 プロセスを env 付きで作り直し（basePath を runtime に反映）"
+echo "==> pm2 プロセスを ecosystem.config.js で作り直し（basePath を runtime に反映）"
 pm2 delete briefing-bot >/dev/null 2>&1 || true
-pm2 start npm --name briefing-bot -- run start
+pm2 start ecosystem.config.js
 pm2 save
+# VPS 再起動後も自動起動するよう systemd に登録（初回のみ有効）
+pm2 startup systemd -u root --hp /root 2>/dev/null | tail -1 | bash || true
 
 cat <<'EOF'
 
