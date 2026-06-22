@@ -7,7 +7,7 @@ import Quiz from "./components/Quiz";
 import HistorySidebar from "./components/HistorySidebar";
 import type { QuizQuestion } from "./api/quiz/route";
 import { type Level } from "@/lib/prompts";
-import { postStream, startJob, pollJob } from "@/lib/config";
+import { startJob, pollJob } from "@/lib/config";
 import {
   addBriefing,
   deleteBriefing,
@@ -19,6 +19,9 @@ import {
 
 const PENDING_JOB_KEY = "briefing.pending_job.v1";
 interface PendingJob { jobId: string; industry: string; level: Level }
+
+const QUIZ_PENDING_JOB_KEY = "quiz.pending_job.v1";
+interface PendingQuizJob { jobId: string; briefingId: string }
 
 export default function Home() {
   // 選択状態
@@ -41,10 +44,12 @@ export default function Home() {
 
   // 進行中のポーリングをキャンセルするための ref
   const pollAbortRef = useRef<AbortController | null>(null);
+  const quizPollAbortRef = useRef<AbortController | null>(null);
 
   // 初期ロード（localStorage）
   useEffect(() => {
-    setHistory(loadHistory());
+    const hist = loadHistory();
+    setHistory(hist);
     const s = loadSettings();
     if (s) {
       setIndustry(s.industry);
@@ -52,38 +57,80 @@ export default function Home() {
       setLevel(s.level);
     }
 
+    const cleanups: Array<() => void> = [];
+
     // Safari を閉じた後に再開した際、処理中ジョブがあれば自動でポーリング再開
     const raw = localStorage.getItem(PENDING_JOB_KEY);
-    if (!raw) return;
-    let pending: PendingJob;
-    try {
-      pending = JSON.parse(raw);
-    } catch {
-      localStorage.removeItem(PENDING_JOB_KEY);
-      return;
+    if (raw) {
+      let pending: PendingJob | null = null;
+      try {
+        pending = JSON.parse(raw);
+      } catch {
+        localStorage.removeItem(PENDING_JOB_KEY);
+      }
+
+      if (pending) {
+        const p = pending;
+        setIndustry(p.industry);
+        setLevel(p.level);
+        setLoading(true);
+
+        const controller = new AbortController();
+        pollAbortRef.current = controller;
+        pollJob<{ text: string }>("/api/briefing/status", p.jobId, controller.signal)
+          .then((data) => {
+            localStorage.removeItem(PENDING_JOB_KEY);
+            const next = addBriefing({ industry: p.industry, level: p.level, text: data.text });
+            setHistory(next);
+            setCurrent(next[0]);
+          })
+          .catch((e: any) => {
+            if (e?.name === "AbortError") return;
+            localStorage.removeItem(PENDING_JOB_KEY);
+            setError(e.message);
+          })
+          .finally(() => setLoading(false));
+
+        cleanups.push(() => controller.abort());
+      }
     }
 
-    setIndustry(pending.industry);
-    setLevel(pending.level);
-    setLoading(true);
+    // クイズ作成中に Safari を閉じた場合も同様に再開する
+    const quizRaw = localStorage.getItem(QUIZ_PENDING_JOB_KEY);
+    if (quizRaw) {
+      let qPending: PendingQuizJob | null = null;
+      try {
+        qPending = JSON.parse(quizRaw);
+      } catch {
+        localStorage.removeItem(QUIZ_PENDING_JOB_KEY);
+      }
 
-    const controller = new AbortController();
-    pollAbortRef.current = controller;
-    pollJob<{ text: string }>("/api/briefing/status", pending.jobId, controller.signal)
-      .then((data) => {
-        localStorage.removeItem(PENDING_JOB_KEY);
-        const next = addBriefing({ industry: pending.industry, level: pending.level, text: data.text });
-        setHistory(next);
-        setCurrent(next[0]);
-      })
-      .catch((e: any) => {
-        if (e?.name === "AbortError") return;
-        localStorage.removeItem(PENDING_JOB_KEY);
-        setError(e.message);
-      })
-      .finally(() => setLoading(false));
+      if (qPending) {
+        const q = qPending;
+        // クイズの対象だったブリーフィングを履歴から復元して表示
+        const target = hist.find((r) => r.id === q.briefingId);
+        if (target) setCurrent(target);
+        setQuizLoading(true);
 
-    return () => controller.abort();
+        const controller = new AbortController();
+        quizPollAbortRef.current = controller;
+        pollJob<{ questions: QuizQuestion[] }>("/api/quiz/status", q.jobId, controller.signal)
+          .then((data) => {
+            localStorage.removeItem(QUIZ_PENDING_JOB_KEY);
+            setQuiz(data.questions);
+          })
+          .catch((e: any) => {
+            if (e?.name === "AbortError") return;
+            localStorage.removeItem(QUIZ_PENDING_JOB_KEY);
+            setQuizError(e.message);
+          })
+          .finally(() => setQuizLoading(false));
+
+        cleanups.push(() => controller.abort());
+      }
+    }
+
+    return () => cleanups.forEach((fn) => fn());
   }, []);
 
   // 設定の永続化
@@ -135,16 +182,33 @@ export default function Home() {
 
   async function startQuiz() {
     if (!current) return;
+
+    // 既存のポーリングをキャンセルしてから新規ジョブを開始
+    quizPollAbortRef.current?.abort();
+    const controller = new AbortController();
+    quizPollAbortRef.current = controller;
+
     setQuizLoading(true);
     setQuizError("");
     setQuiz(null);
     try {
-      const data = await postStream<{ questions: QuizQuestion[] }>(
-        "/api/quiz",
-        { briefing: current.text }
+      // サーバー側ジョブを起動（Safari を閉じても処理は継続）
+      const jobId = await startJob("/api/quiz", { briefing: current.text });
+      localStorage.setItem(
+        QUIZ_PENDING_JOB_KEY,
+        JSON.stringify({ jobId, briefingId: current.id } satisfies PendingQuizJob)
       );
+
+      const data = await pollJob<{ questions: QuizQuestion[] }>(
+        "/api/quiz/status",
+        jobId,
+        controller.signal
+      );
+      localStorage.removeItem(QUIZ_PENDING_JOB_KEY);
       setQuiz(data.questions);
     } catch (e: any) {
+      if (e?.name === "AbortError") return;
+      localStorage.removeItem(QUIZ_PENDING_JOB_KEY);
       setQuizError(e.message);
     } finally {
       setQuizLoading(false);
