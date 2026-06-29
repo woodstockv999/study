@@ -7,7 +7,7 @@ import type { GenerateOptions } from "./types";
 //  ※ ANTHROPIC_API_KEY が必要（従量課金）。
 // ─────────────────────────────────────────────────────────────
 
-const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-4-6";
+const MODEL = process.env.CLAUDE_MODEL || "claude-haiku-4-5-20251001";
 
 function getClient(): Anthropic {
   const apiKey = process.env.ANTHROPIC_API_KEY;
