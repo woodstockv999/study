@@ -8,6 +8,7 @@ export interface BriefingRecord {
   industry: string;
   level: Level;
   text: string;
+  starred?: boolean;
 }
 
 const HISTORY_KEY = "briefing.history.v1";
@@ -49,13 +50,21 @@ export function addBriefing(
         : String(Date.now()),
     date: new Date().toISOString(),
   };
-  const next = [record, ...loadHistory()].slice(0, 100); // 上限100件
+  const next = [record, ...loadHistory()].slice(0, 100);
   saveHistory(next);
   return next;
 }
 
 export function deleteBriefing(id: string): BriefingRecord[] {
   const next = loadHistory().filter((r) => r.id !== id);
+  saveHistory(next);
+  return next;
+}
+
+export function toggleStar(id: string): BriefingRecord[] {
+  const next = loadHistory().map((r) =>
+    r.id === id ? { ...r, starred: !r.starred } : r
+  );
   saveHistory(next);
   return next;
 }
