@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 const LINKS = [
   { href: "/",          label: "ニュース" },
   { href: "/search",    label: "企業検索" },
-  { href: "/bulk",      label: "大量保有" },
   { href: "/compare",   label: "企業比較" },
 ];
 
