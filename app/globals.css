@@ -6,44 +6,189 @@
   color-scheme: light;
 }
 
-html,
-body {
-  @apply bg-slate-50 text-slate-800 antialiased;
+/* prefers-reduced-motion 対応 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
-/* react-markdown 用の最小限タイポグラフィ（白基調・落ち着いたビジネス系） */
-.md h1,
-.md h2,
-.md h3 {
-  @apply font-semibold text-slate-900;
+html,
+body {
+  background-color: #F8F5F0;
+  color: #1C1917;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* ─── Editorial Markdown ─────────────────────────────────── */
+.md {
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  color: #1C1917;
+}
+
 .md h1 {
-  @apply text-xl mt-4 mb-2;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0D1B2A;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.01em;
 }
+
 .md h2 {
-  @apply text-lg mt-5 mb-2 pb-1 border-b border-slate-200;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #0D1B2A;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #E7E2D8;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
+
+.md h2::before {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 0.875rem;
+  background: #C62828;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
 .md h3 {
-  @apply text-base mt-3 mb-1 text-accent;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #162032;
+  margin-top: 1rem;
+  margin-bottom: 0.25rem;
 }
+
 .md p {
-  @apply my-2 leading-relaxed;
+  margin-top: 0.4rem;
+  margin-bottom: 0.4rem;
 }
+
 .md ul {
-  @apply list-disc pl-5 my-2 space-y-1;
+  padding-left: 1.125rem;
+  margin: 0.5rem 0;
+  list-style: none;
 }
+
+.md ul li {
+  position: relative;
+  padding-left: 0.875rem;
+  margin-bottom: 0.375rem;
+}
+
+.md ul li::before {
+  content: "—";
+  position: absolute;
+  left: -0.125rem;
+  color: #C62828;
+  font-weight: 600;
+}
+
 .md ol {
-  @apply list-decimal pl-5 my-2 space-y-1;
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+  list-style: decimal;
+  counter-reset: list;
 }
+
+.md ol li {
+  margin-bottom: 0.5rem;
+  padding-left: 0.25rem;
+}
+
+.md ol li::marker {
+  color: #C62828;
+  font-weight: 700;
+}
+
 .md a {
-  @apply text-accent underline underline-offset-2 break-words;
+  color: #C62828;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+  word-break: break-all;
 }
+
+.md a:hover {
+  opacity: 0.75;
+}
+
 .md strong {
-  @apply font-semibold text-slate-900;
+  font-weight: 700;
+  color: #1C1917;
 }
+
 .md code {
-  @apply bg-slate-100 px-1 py-0.5 rounded text-sm;
+  background: #EDEAD3;
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  font-size: 0.8125em;
+  font-family: "DM Mono", ui-monospace, monospace;
 }
+
 .md blockquote {
-  @apply border-l-4 border-slate-200 pl-3 text-slate-600 italic my-2;
+  border-left: 3px solid #C62828;
+  padding-left: 0.875rem;
+  margin: 0.75rem 0;
+  color: #44403C;
+  font-style: italic;
+}
+
+.md hr {
+  border: none;
+  border-top: 1px solid #E7E2D8;
+  margin: 1.25rem 0;
+}
+
+/* モーニングカードの compact Markdown */
+.md-compact {
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: #44403C;
+}
+
+.md-compact h2 {
+  font-size: 0.6875rem;
+  margin-top: 0.75rem;
+  margin-bottom: 0.375rem;
+}
+
+.md-compact h3 {
+  font-size: 0.8125rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.125rem;
+}
+
+.md-compact ol li {
+  margin-bottom: 0.375rem;
+}
+
+.md-compact ul li {
+  margin-bottom: 0.25rem;
+}
+
+/* ─── Skeleton shimmer ───────────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #EDEAD3 25%, #F8F5F0 50%, #EDEAD3 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 3px;
 }
