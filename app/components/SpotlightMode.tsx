@@ -7,8 +7,8 @@ import Markdown from "./Markdown";
 
 const QUICK_PICKS = [
   "NVIDIA", "OpenAI", "Microsoft", "Google", "Amazon",
-  "Apple", "Meta", "トヨタ", "ソニー", "NTT",
-  "富士通", "日立", "TSMC", "Anthropic", "SoftBank",
+  "Apple", "Meta", "Anthropic", "TSMC", "SoftBank",
+  "トヨタ", "ソニー", "NTT", "富士通", "日立",
 ];
 
 interface Props {
@@ -24,17 +24,11 @@ export default function SpotlightMode({ onHistoryUpdated }: Props) {
   async function search(name?: string) {
     const target = (name ?? company).trim();
     if (!target) return;
-
-    setCompany(target);
-    setLoading(true);
-    setError("");
-    setResult("");
-
+    setCompany(target); setLoading(true); setError(""); setResult("");
     try {
       const jobId = await startJob("/api/spotlight", { company: target });
       const data = await pollJob<{ text: string }>("/api/spotlight/status", jobId);
       setResult(data.text);
-      // 履歴に保存（enterprise: プレフィックスで識別）
       addBriefing({ industry: `企業: ${target}`, level: "実務", text: data.text });
       onHistoryUpdated();
     } catch (e: any) {
@@ -45,93 +39,94 @@ export default function SpotlightMode({ onHistoryUpdated }: Props) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* 検索パネル */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            企業・組織名
-          </label>
+      <div className="bg-paper-surface border border-paper-border rounded-lg overflow-hidden">
+        <div className="bg-navy px-4 py-2.5 flex items-center gap-2">
+          <span className="w-0.5 h-3.5 bg-accent rounded-sm block" />
+          <span className="text-2xs font-bold text-white uppercase tracking-widest">企業追跡</span>
+        </div>
+
+        <div className="p-4 space-y-3">
           <div className="flex gap-2">
             <input
               type="text"
               value={company}
               onChange={(e) => setCompany(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && search()}
-              placeholder="例: NVIDIA、トヨタ、OpenAI …"
-              className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-accent focus:ring-1 focus:ring-accent outline-none"
+              placeholder="企業・組織名を入力（例: NVIDIA、トヨタ…）"
+              className="flex-1 border border-paper-border rounded px-3 py-1.5 text-sm bg-paper focus:border-navy-mid focus:ring-1 focus:ring-navy-mid outline-none"
             />
             <button
               type="button"
               onClick={() => search()}
               disabled={loading || !company.trim()}
-              className="bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg px-4 py-2 whitespace-nowrap transition"
+              className="flex items-center gap-1.5 bg-accent hover:bg-accent-hover disabled:opacity-50 text-white text-xs font-bold rounded px-4 py-1.5 whitespace-nowrap transition-colors uppercase tracking-wide"
             >
-              {loading ? "調査中…" : "調査する"}
+              {loading ? (
+                <><span className="inline-block h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />調査中</>
+              ) : "調査"}
             </button>
           </div>
-        </div>
 
-        {/* クイックピック */}
-        <div>
-          <p className="text-xs text-slate-500 mb-2">よく調べられる企業</p>
-          <div className="flex flex-wrap gap-1.5">
-            {QUICK_PICKS.map((name) => (
-              <button
-                key={name}
-                type="button"
-                onClick={() => search(name)}
-                disabled={loading}
-                className="px-2.5 py-1 rounded-full text-xs border border-slate-200 text-slate-600 hover:border-accent hover:text-accent disabled:opacity-50 transition bg-white"
-              >
-                {name}
-              </button>
-            ))}
+          {/* クイックピック */}
+          <div>
+            <p className="text-2xs text-ink-faint uppercase tracking-wider mb-2">よく調べられる企業</p>
+            <div className="flex flex-wrap gap-1.5">
+              {QUICK_PICKS.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => search(name)}
+                  disabled={loading}
+                  className="px-2 py-0.5 rounded text-2xs border border-paper-border text-ink-mid hover:border-navy-mid hover:text-navy disabled:opacity-40 transition-colors bg-paper"
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ローディング */}
-      {loading && (
-        <div className="bg-white rounded-xl border border-slate-200 p-8 text-center shadow-sm">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-accent" />
-          <p className="mt-3 text-sm text-slate-600">
-            {company} の最新情報を Web 検索中…
-          </p>
-        </div>
-      )}
-
-      {/* エラー */}
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-          <span>{error}</span>
-          <button
-            type="button"
-            onClick={() => search()}
-            className="shrink-0 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium px-3 py-1.5 transition"
-          >
-            再試行
-          </button>
-        </div>
-      )}
-
       {/* 結果 */}
+      {loading && (
+        <div className="bg-paper-surface border border-paper-border rounded-lg p-6 space-y-3">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="inline-block h-4 w-4 border-2 border-paper-border border-t-accent rounded-full animate-spin" />
+            <span className="text-sm text-ink-muted">{company} の最新情報を Web 検索中…</span>
+          </div>
+          <div className="skeleton h-3 w-2/3" />
+          <div className="skeleton h-3 w-full" />
+          <div className="skeleton h-3 w-5/6" />
+        </div>
+      )}
+
+      {error && (
+        <div className="border border-accent-border bg-accent-soft rounded-lg px-4 py-3 text-sm text-accent flex items-center justify-between gap-3">
+          <span>{error}</span>
+          <button type="button" onClick={() => search()} className="shrink-0 bg-accent hover:bg-accent-hover text-white text-xs font-bold rounded px-3 py-1.5 transition-colors">再試行</button>
+        </div>
+      )}
+
       {result && !loading && (
-        <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
-            <span className="px-2 py-0.5 rounded-full bg-accent-soft text-accent text-xs font-medium">
+        <article className="bg-paper-surface border border-paper-border rounded-lg overflow-hidden">
+          <div className="border-b border-paper-border px-4 py-3 flex items-center gap-2">
+            <span className="inline-flex items-center px-2 py-0.5 rounded bg-navy text-white text-2xs font-bold uppercase tracking-wider">
               企業追跡
             </span>
-            <span className="text-sm font-semibold text-slate-800">{company}</span>
+            <span className="text-sm font-semibold text-ink">{company}</span>
           </div>
-          <Markdown>{result}</Markdown>
-        </div>
+          <div className="px-4 sm:px-5 py-4">
+            <Markdown>{result}</Markdown>
+          </div>
+        </article>
       )}
 
       {!result && !loading && !error && (
-        <div className="text-center py-16 text-slate-400 text-sm">
-          <p className="text-2xl mb-3">🔍</p>
-          <p>企業名を入力するか、よく調べられる企業をクリックしてください</p>
+        <div className="border border-paper-border border-dashed rounded-lg py-14 text-center">
+          <p className="text-3xl opacity-30 mb-3">🔍</p>
+          <p className="text-sm text-ink-muted">企業名を入力するか、候補から選んでください</p>
         </div>
       )}
     </div>

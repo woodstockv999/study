@@ -20,22 +20,17 @@ interface Props {
   onSelectRecord: (rec: BriefingRecord) => void;
 }
 
-// マークダウンからトップニュースセクションだけ抽出
 function extractTopNews(text: string): string {
   const lines = text.split("\n");
   const start = lines.findIndex((l) => l.match(/^##\s*(本日のトップ|今日のトップ|トップニュース)/));
   const end = lines.findIndex((l, i) => i > start && start >= 0 && l.startsWith("## "));
-  if (start < 0) return lines.slice(0, 8).join("\n");
-  const slice = end > start ? lines.slice(start, end) : lines.slice(start, start + 10);
+  if (start < 0) return lines.slice(0, 10).join("\n");
+  const slice = end > start ? lines.slice(start, end) : lines.slice(start, start + 12);
   return slice.join("\n");
 }
 
 export default function MorningMode({ onHistoryUpdated, onSelectRecord }: Props) {
-  const [selectedCats, setSelectedCats] = useState<string[]>([
-    "AI・生成AI",
-    "セキュリティ",
-    "クラウド・インフラ",
-  ]);
+  const [selectedCats, setSelectedCats] = useState<string[]>(["AI・生成AI", "セキュリティ", "クラウド・インフラ"]);
   const [level, setLevel] = useState<Level>("実務");
   const [jobs, setJobs] = useState<MorningJob[]>([]);
   const [running, setRunning] = useState(false);
@@ -45,148 +40,127 @@ export default function MorningMode({ onHistoryUpdated, onSelectRecord }: Props)
     setSelectedCats((prev) =>
       prev.includes(label)
         ? prev.filter((c) => c !== label)
-        : prev.length < 5
-        ? [...prev, label]
-        : prev
+        : prev.length < 5 ? [...prev, label] : prev
     );
   }
 
   async function generate() {
     if (selectedCats.length === 0 || running) return;
-    setRunning(true);
-    setExpandedCat(null);
+    setRunning(true); setExpandedCat(null);
+    setJobs(selectedCats.map((c) => ({ category: c, jobId: null, status: "loading" })));
 
-    const initial: MorningJob[] = selectedCats.map((c) => ({
-      category: c,
-      jobId: null,
-      status: "loading",
-    }));
-    setJobs(initial);
-
-    // 各カテゴリを並列生成
     await Promise.allSettled(
       selectedCats.map(async (category, i) => {
         try {
           const jobId = await startJob("/api/briefing", { industry: category, level });
-          setJobs((prev) =>
-            prev.map((j, idx) => (idx === i ? { ...j, jobId } : j))
-          );
-
-          const data = await pollJob<{ text: string }>(
-            "/api/briefing/status",
-            jobId
-          );
+          setJobs((prev) => prev.map((j, idx) => idx === i ? { ...j, jobId } : j));
+          const data = await pollJob<{ text: string }>("/api/briefing/status", jobId);
           const records = addBriefing({ industry: category, level, text: data.text });
           onHistoryUpdated();
-
-          setJobs((prev) =>
-            prev.map((j, idx) =>
-              idx === i
-                ? { ...j, status: "done", text: data.text, record: records[0] }
-                : j
-            )
-          );
+          setJobs((prev) => prev.map((j, idx) =>
+            idx === i ? { ...j, status: "done", text: data.text, record: records[0] } : j
+          ));
         } catch (e: any) {
-          setJobs((prev) =>
-            prev.map((j, idx) =>
-              idx === i ? { ...j, status: "error", error: e.message } : j
-            )
-          );
+          setJobs((prev) => prev.map((j, idx) =>
+            idx === i ? { ...j, status: "error", error: e.message } : j
+          ));
         }
       })
     );
-
     setRunning(false);
   }
 
+  const doneCount = jobs.filter((j) => j.status === "done").length;
+
   return (
-    <div className="space-y-6">
-      {/* コントロール */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-4">
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-sm font-medium text-slate-700">
-              カテゴリ選択（最大 5 件）
-            </label>
-            <span className="text-xs text-slate-400">
-              {selectedCats.length} / 5 選択中
+    <div className="space-y-4">
+      {/* コントロールパネル */}
+      <div className="bg-paper-surface border border-paper-border rounded-lg overflow-hidden">
+        <div className="bg-navy px-4 py-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="w-0.5 h-3.5 bg-accent rounded-sm block" />
+            <span className="text-2xs font-bold text-white uppercase tracking-widest">
+              朝刊カテゴリ選択
             </span>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <span className="text-2xs text-navy-muted">{selectedCats.length}/5</span>
+        </div>
+
+        <div className="p-4 space-y-4">
+          <div className="flex flex-wrap gap-1.5">
             {TECH_CATEGORIES.map((c) => (
               <button
                 key={c.id}
                 type="button"
                 onClick={() => toggleCat(c.label)}
-                className={`px-3 py-1.5 rounded-full text-sm border transition ${
+                className={`px-2.5 py-1 rounded text-xs font-medium border transition-all ${
                   selectedCats.includes(c.label)
                     ? "bg-accent text-white border-accent"
-                    : "bg-white text-slate-700 border-slate-300 hover:border-accent"
+                    : "bg-paper text-ink-mid border-paper-border hover:border-accent hover:text-accent"
                 }`}
               >
                 {c.label}
               </button>
             ))}
           </div>
-        </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            レベル
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {LEVELS.map((l) => (
-              <button
-                key={l}
-                type="button"
-                onClick={() => setLevel(l)}
-                className={`px-3 py-1.5 rounded-lg text-sm border transition ${
-                  level === l
-                    ? "bg-slate-800 text-white border-slate-800"
-                    : "bg-white text-slate-700 border-slate-300 hover:border-slate-500"
-                }`}
-              >
-                {l}
-              </button>
-            ))}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1">
+              <span className="text-2xs text-ink-faint uppercase tracking-wider mr-1">レベル</span>
+              {LEVELS.map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setLevel(l)}
+                  className={`px-2.5 py-1 rounded text-xs font-medium border transition-all ${
+                    level === l
+                      ? "bg-ink text-white border-ink"
+                      : "bg-paper text-ink-muted border-paper-border hover:border-ink-mid"
+                  }`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={generate}
+              disabled={running || selectedCats.length === 0}
+              className="ml-auto flex items-center gap-2 bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded px-4 py-2 transition-colors uppercase tracking-wide"
+            >
+              {running ? (
+                <>
+                  <span className="inline-block h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  {doneCount}/{jobs.length} 完了
+                </>
+              ) : "朝刊を生成"}
+            </button>
           </div>
         </div>
-
-        <button
-          type="button"
-          onClick={generate}
-          disabled={running || selectedCats.length === 0}
-          className="w-full bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg px-4 py-2.5 transition"
-        >
-          {running
-            ? `朝刊生成中… (${jobs.filter((j) => j.status === "done").length}/${jobs.length} 完了)`
-            : "朝刊を生成する"}
-        </button>
       </div>
 
       {/* カードグリッド */}
       {jobs.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {jobs.map((job) => (
             <MorningCard
               key={job.category}
               job={job}
               expanded={expandedCat === job.category}
-              onToggleExpand={() =>
-                setExpandedCat(
-                  expandedCat === job.category ? null : job.category
-                )
-              }
+              onToggle={() => setExpandedCat(expandedCat === job.category ? null : job.category)}
               onOpenFull={() => job.record && onSelectRecord(job.record)}
               extractTopNews={extractTopNews}
             />
           ))}
         </div>
       ) : (
-        <div className="text-center py-16 text-slate-400 text-sm">
-          <p className="text-2xl mb-3">📰</p>
-          <p>カテゴリを選んで「朝刊を生成する」を押してください</p>
-          <p className="mt-1 text-xs">複数カテゴリを並列生成して一覧表示します</p>
+        <div className="border border-paper-border border-dashed rounded-lg py-14 text-center">
+          <p className="text-3xl opacity-30 mb-3">📰</p>
+          <p className="text-sm text-ink-muted">
+            カテゴリを選んで<strong>朝刊を生成</strong>してください
+          </p>
+          <p className="text-xs text-ink-faint mt-1">複数カテゴリを並列生成して一覧表示します</p>
         </div>
       )}
     </div>
@@ -194,76 +168,66 @@ export default function MorningMode({ onHistoryUpdated, onSelectRecord }: Props)
 }
 
 function MorningCard({
-  job,
-  expanded,
-  onToggleExpand,
-  onOpenFull,
-  extractTopNews,
+  job, expanded, onToggle, onOpenFull, extractTopNews,
 }: {
   job: MorningJob;
   expanded: boolean;
-  onToggleExpand: () => void;
+  onToggle: () => void;
   onOpenFull: () => void;
-  extractTopNews: (text: string) => string;
+  extractTopNews: (t: string) => string;
 }) {
   return (
-    <div
-      className={`bg-white rounded-xl border shadow-sm overflow-hidden ${
-        job.status === "error" ? "border-red-200" : "border-slate-200"
-      }`}
-    >
+    <div className={`bg-paper-surface border rounded-lg overflow-hidden flex flex-col ${
+      job.status === "error" ? "border-accent-border" : "border-paper-border"
+    }`}>
       {/* カードヘッダー */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50">
-        <span className="text-sm font-semibold text-slate-800">
-          {job.category}
-        </span>
-        <div className="flex items-center gap-2">
-          {job.status === "loading" && (
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-accent" />
-          )}
-          {job.status === "done" && (
-            <>
-              <button
-                type="button"
-                onClick={onToggleExpand}
-                className="text-xs text-slate-500 hover:text-accent transition"
-              >
-                {expanded ? "折りたたむ" : "詳細"}
-              </button>
-              <button
-                type="button"
-                onClick={onOpenFull}
-                className="text-xs bg-accent text-white rounded px-2 py-0.5 hover:bg-accent-hover transition"
-              >
-                全文
-              </button>
-            </>
-          )}
-          {job.status === "error" && (
-            <span className="text-xs text-red-500">エラー</span>
-          )}
-        </div>
-      </div>
-
-      {/* カードボディ */}
-      <div className="p-4">
+      <div className="flex items-center gap-2 px-3 py-2 bg-navy/5 border-b border-paper-border">
+        <span className="text-xs font-bold text-ink tracking-tight flex-1">{job.category}</span>
         {job.status === "loading" && (
-          <div className="space-y-2 py-2">
-            <div className="h-3 bg-slate-100 rounded animate-pulse w-4/5" />
-            <div className="h-3 bg-slate-100 rounded animate-pulse w-full" />
-            <div className="h-3 bg-slate-100 rounded animate-pulse w-3/4" />
-            <div className="h-3 bg-slate-100 rounded animate-pulse w-5/6" />
-            <p className="text-xs text-slate-400 mt-3">Web検索中…</p>
+          <span className="inline-block h-3 w-3 border-2 border-paper-border border-t-accent rounded-full animate-spin shrink-0" />
+        )}
+        {job.status === "done" && (
+          <div className="flex gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={onToggle}
+              className="text-2xs text-ink-muted hover:text-ink transition-colors"
+            >
+              {expanded ? "折りたたむ ▲" : "詳細 ▼"}
+            </button>
+            <span className="text-paper-border">|</span>
+            <button
+              type="button"
+              onClick={onOpenFull}
+              className="text-2xs font-bold text-accent hover:text-accent-hover transition-colors"
+            >
+              全文 →
+            </button>
           </div>
         )}
         {job.status === "error" && (
-          <p className="text-sm text-red-600">{job.error}</p>
+          <span className="text-2xs text-accent shrink-0">エラー</span>
+        )}
+      </div>
+
+      {/* カードボディ */}
+      <div className="p-3 flex-1">
+        {job.status === "loading" && (
+          <div className="space-y-2 py-1">
+            <div className="skeleton h-2.5 w-4/5" />
+            <div className="skeleton h-2.5 w-full" />
+            <div className="skeleton h-2.5 w-11/12" />
+            <div className="skeleton h-2.5 w-3/4 mt-3" />
+            <div className="skeleton h-2.5 w-full" />
+            <p className="text-2xs text-ink-faint mt-3">Web 検索中…</p>
+          </div>
+        )}
+        {job.status === "error" && (
+          <p className="text-xs text-accent">{job.error}</p>
         )}
         {job.status === "done" && job.text && (
-          <div className="text-sm">
-            <Markdown>
-              {expanded ? job.text : extractTopNews(job.text)}
-            </Markdown>
+          <div className="md-compact md">
+            <Markdown>{expanded ? job.text : extractTopNews(job.text)}</Markdown>
           </div>
         )}
       </div>

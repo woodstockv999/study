@@ -16,8 +16,7 @@ function groupByDate(records: BriefingRecord[]): [string, BriefingRecord[]][] {
   const map = new Map<string, BriefingRecord[]>();
   for (const r of records) {
     const key = new Date(r.date).toLocaleDateString("ja-JP", {
-      month: "numeric",
-      day: "numeric",
+      month: "numeric", day: "numeric",
     });
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(r);
@@ -25,30 +24,28 @@ function groupByDate(records: BriefingRecord[]): [string, BriefingRecord[]][] {
   return Array.from(map.entries());
 }
 
-export default function HistorySidebar({
-  records,
-  activeId,
-  onSelect,
-  onDelete,
-}: Props) {
+export default function HistorySidebar({ records, activeId, onSelect, onDelete }: Props) {
   const [filter, setFilter] = useState<Filter>("all");
 
-  const filtered =
-    filter === "starred" ? records.filter((r) => r.starred) : records;
+  const filtered = filter === "starred" ? records.filter((r) => r.starred) : records;
   const groups = groupByDate(filtered);
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-slate-700">履歴</h2>
+    <div className="bg-paper-surface border border-paper-border rounded-lg overflow-hidden">
+      {/* ヘッダー */}
+      <div className="bg-navy px-3 py-2.5 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="w-0.5 h-3.5 bg-accent rounded-sm block" />
+          <span className="text-2xs font-bold text-white uppercase tracking-widest">履歴</span>
+        </div>
         <div className="flex gap-1">
           <button
             type="button"
             onClick={() => setFilter("all")}
-            className={`px-2 py-0.5 rounded text-xs transition ${
+            className={`px-2 py-0.5 rounded text-2xs font-medium transition-colors ${
               filter === "all"
-                ? "bg-slate-200 text-slate-700 font-medium"
-                : "text-slate-400 hover:text-slate-600"
+                ? "bg-white/20 text-white"
+                : "text-navy-muted hover:text-white"
             }`}
           >
             すべて
@@ -56,10 +53,10 @@ export default function HistorySidebar({
           <button
             type="button"
             onClick={() => setFilter("starred")}
-            className={`px-2 py-0.5 rounded text-xs transition ${
+            className={`px-2 py-0.5 rounded text-2xs font-medium transition-colors ${
               filter === "starred"
-                ? "bg-yellow-100 text-yellow-700 font-medium"
-                : "text-slate-400 hover:text-slate-600"
+                ? "bg-amber-400/20 text-amber-300"
+                : "text-navy-muted hover:text-white"
             }`}
           >
             ★ スター
@@ -67,55 +64,53 @@ export default function HistorySidebar({
         </div>
       </div>
 
-      {filtered.length === 0 ? (
-        <p className="text-sm text-slate-400">
-          {filter === "starred"
-            ? "スターを付けた記事がありません"
-            : "まだありません。生成すると保存されます。"}
-        </p>
-      ) : (
-        <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
-          {groups.map(([date, recs]) => (
+      {/* 履歴リスト */}
+      <div className="divide-y divide-paper-border max-h-[70vh] overflow-y-auto">
+        {filtered.length === 0 ? (
+          <p className="px-4 py-6 text-xs text-ink-faint text-center">
+            {filter === "starred" ? "スター付きがありません" : "まだ履歴がありません"}
+          </p>
+        ) : (
+          groups.map(([date, recs]) => (
             <div key={date}>
-              <p className="text-xs text-slate-400 font-medium mb-1 sticky top-0 bg-white py-0.5">
-                {date}
-              </p>
-              <ul className="space-y-1">
-                {recs.map((r) => (
-                  <li
-                    key={r.id}
-                    className={`group flex items-center gap-1.5 rounded-lg px-2 py-1.5 cursor-pointer ${
-                      activeId === r.id ? "bg-accent-soft" : "hover:bg-slate-50"
-                    }`}
+              <div className="px-3 py-1 bg-paper border-b border-paper-border sticky top-0">
+                <span className="text-2xs text-ink-faint font-bold uppercase tracking-wider">
+                  {date}
+                </span>
+              </div>
+              {recs.map((r) => (
+                <div
+                  key={r.id}
+                  className={`group flex items-start gap-1.5 px-3 py-2.5 cursor-pointer transition-colors ${
+                    activeId === r.id
+                      ? "bg-navy/5 border-l-2 border-l-accent"
+                      : "hover:bg-paper border-l-2 border-l-transparent"
+                  }`}
+                  onClick={() => onSelect(r)}
+                >
+                  {r.starred && (
+                    <span className="text-amber-400 text-xs mt-0.5 shrink-0">★</span>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-ink truncate leading-snug">
+                      {r.industry}
+                    </p>
+                    <p className="text-2xs text-ink-faint mt-0.5">{r.level}</p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="削除"
+                    onClick={(e) => { e.stopPropagation(); onDelete(r.id); }}
+                    className="opacity-0 group-hover:opacity-100 text-ink-faint hover:text-accent text-xs px-1 transition-all shrink-0 mt-0.5"
                   >
-                    {r.starred && (
-                      <span className="text-yellow-400 text-xs shrink-0">★</span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => onSelect(r)}
-                      className="flex-1 text-left min-w-0"
-                    >
-                      <div className="text-xs font-medium text-slate-800 truncate">
-                        {r.industry}
-                      </div>
-                      <div className="text-xs text-slate-400">{r.level}</div>
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="削除"
-                      onClick={() => onDelete(r.id)}
-                      className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 text-xs px-1 transition"
-                    >
-                      ✕
-                    </button>
-                  </li>
-                ))}
-              </ul>
+                    ✕
+                  </button>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
     </div>
   );
 }

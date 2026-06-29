@@ -17,10 +17,7 @@ export default function WeeklyMode({ onHistoryUpdated }: Props) {
   const [error, setError] = useState("");
 
   async function generate() {
-    setLoading(true);
-    setError("");
-    setResult("");
-
+    setLoading(true); setError(""); setResult("");
     try {
       const jobId = await startJob("/api/weekly", { category });
       const data = await pollJob<{ text: string }>("/api/weekly/status", jobId);
@@ -35,79 +32,85 @@ export default function WeeklyMode({ onHistoryUpdated }: Props) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            カテゴリ
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {TECH_CATEGORIES.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setCategory(c.label)}
-                className={`px-3 py-1.5 rounded-full text-sm border transition ${
-                  category === c.label
-                    ? "bg-accent text-white border-accent"
-                    : "bg-white text-slate-700 border-slate-300 hover:border-accent"
-                }`}
-              >
-                {c.label}
-              </button>
-            ))}
-          </div>
+    <div className="space-y-4">
+      <div className="bg-paper-surface border border-paper-border rounded-lg overflow-hidden">
+        <div className="bg-navy px-4 py-2.5 flex items-center gap-2">
+          <span className="w-0.5 h-3.5 bg-accent rounded-sm block" />
+          <span className="text-2xs font-bold text-white uppercase tracking-widest">週次まとめ</span>
         </div>
 
-        <button
-          type="button"
-          onClick={generate}
-          disabled={loading}
-          className="w-full bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg px-4 py-2.5 transition"
-        >
-          {loading ? "週次まとめを生成中…" : "今週のまとめを生成する"}
-        </button>
+        <div className="p-4 space-y-4">
+          <div>
+            <p className="text-2xs text-ink-faint uppercase tracking-wider mb-2">カテゴリ</p>
+            <div className="flex flex-wrap gap-1.5">
+              {TECH_CATEGORIES.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setCategory(c.label)}
+                  className={`px-2.5 py-1 rounded text-xs font-medium border transition-all ${
+                    category === c.label
+                      ? "bg-navy text-white border-navy"
+                      : "bg-paper text-ink-mid border-paper-border hover:border-navy-mid hover:text-navy"
+                  }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={generate}
+            disabled={loading}
+            className="flex items-center gap-2 bg-accent hover:bg-accent-hover disabled:opacity-50 text-white text-xs font-bold rounded px-4 py-2 transition-colors uppercase tracking-wide"
+          >
+            {loading ? (
+              <><span className="inline-block h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />生成中</>
+            ) : "今週のまとめを生成"}
+          </button>
+        </div>
       </div>
 
       {loading && (
-        <div className="bg-white rounded-xl border border-slate-200 p-8 text-center shadow-sm">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-accent" />
-          <p className="mt-3 text-sm text-slate-600">
-            今週の {category} ニュースを集めています…
-          </p>
+        <div className="bg-paper-surface border border-paper-border rounded-lg p-6 space-y-3">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="inline-block h-4 w-4 border-2 border-paper-border border-t-accent rounded-full animate-spin" />
+            <span className="text-sm text-ink-muted">今週の {category} ニュースを集めています…</span>
+          </div>
+          <div className="skeleton h-3 w-3/4" />
+          <div className="skeleton h-3 w-full" />
+          <div className="skeleton h-3 w-5/6" />
         </div>
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+        <div className="border border-accent-border bg-accent-soft rounded-lg px-4 py-3 text-sm text-accent flex items-center justify-between gap-3">
           <span>{error}</span>
-          <button
-            type="button"
-            onClick={generate}
-            className="shrink-0 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium px-3 py-1.5 transition"
-          >
-            再試行
-          </button>
+          <button type="button" onClick={generate} className="shrink-0 bg-accent hover:bg-accent-hover text-white text-xs font-bold rounded px-3 py-1.5 transition-colors">再試行</button>
         </div>
       )}
 
       {result && !loading && (
-        <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
-            <span className="px-2 py-0.5 rounded-full bg-accent-soft text-accent text-xs font-medium">
+        <article className="bg-paper-surface border border-paper-border rounded-lg overflow-hidden">
+          <div className="border-b border-paper-border px-4 py-3 flex items-center gap-2">
+            <span className="inline-flex items-center px-2 py-0.5 rounded bg-navy text-white text-2xs font-bold uppercase tracking-wider">
               週次まとめ
             </span>
-            <span className="text-sm font-semibold text-slate-800">{category}</span>
+            <span className="text-sm font-semibold text-ink">{category}</span>
           </div>
-          <Markdown>{result}</Markdown>
-        </div>
+          <div className="px-4 sm:px-5 py-4">
+            <Markdown>{result}</Markdown>
+          </div>
+        </article>
       )}
 
       {!result && !loading && !error && (
-        <div className="text-center py-16 text-slate-400 text-sm">
-          <p className="text-2xl mb-3">📅</p>
-          <p>カテゴリを選んで今週のまとめを生成してください</p>
-          <p className="mt-1 text-xs">直近7日間のニュースをWeb検索してまとめます</p>
+        <div className="border border-paper-border border-dashed rounded-lg py-14 text-center">
+          <p className="text-3xl opacity-30 mb-3">📅</p>
+          <p className="text-sm text-ink-muted">カテゴリを選んで今週のまとめを生成してください</p>
+          <p className="text-xs text-ink-faint mt-1">直近 7 日間のニュースをまとめます</p>
         </div>
       )}
     </div>

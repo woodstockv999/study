@@ -16,36 +16,35 @@ interface Props {
 }
 
 export default function IndustryPicker({
-  industry,
-  customIndustry,
-  level,
-  loading,
-  onIndustryChange,
-  onCustomChange,
-  onLevelChange,
-  onGenerate,
+  industry, customIndustry, level, loading,
+  onIndustryChange, onCustomChange, onLevelChange, onGenerate,
 }: Props) {
   const isCustom = industry === CUSTOM;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm">
-      <div className="space-y-4">
-        {/* カテゴリ */}
+    <div className="bg-paper-surface border border-paper-border rounded-lg overflow-hidden">
+      {/* セクションヘッダー */}
+      <div className="bg-navy px-4 py-2.5 flex items-center gap-2">
+        <span className="w-0.5 h-3.5 bg-accent rounded-sm block" />
+        <span className="text-2xs font-bold text-white uppercase tracking-widest">
+          カテゴリ選択
+        </span>
+      </div>
+
+      <div className="p-4 space-y-4">
+        {/* カテゴリチップ */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            カテゴリ
-          </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {TECH_CATEGORIES.map((c) => (
               <button
                 key={c.id}
                 type="button"
                 onClick={() => onIndustryChange(c.label)}
                 title={c.description}
-                className={`px-3 py-1.5 rounded-full text-sm border transition ${
+                className={`px-2.5 py-1 rounded text-xs font-medium border transition-all ${
                   industry === c.label
-                    ? "bg-accent text-white border-accent"
-                    : "bg-white text-slate-700 border-slate-300 hover:border-accent"
+                    ? "bg-navy text-white border-navy"
+                    : "bg-paper text-ink-mid border-paper-border hover:border-navy-mid hover:text-navy"
                 }`}
               >
                 {c.label}
@@ -54,13 +53,13 @@ export default function IndustryPicker({
             <button
               type="button"
               onClick={() => onIndustryChange(CUSTOM)}
-              className={`px-3 py-1.5 rounded-full text-sm border transition ${
+              className={`px-2.5 py-1 rounded text-xs font-medium border transition-all ${
                 isCustom
-                  ? "bg-accent text-white border-accent"
-                  : "bg-white text-slate-700 border-slate-300 hover:border-accent"
+                  ? "bg-navy text-white border-navy"
+                  : "bg-paper text-ink-muted border-paper-border hover:border-navy-mid hover:text-navy"
               }`}
             >
-              その他
+              その他…
             </button>
           </div>
           {isCustom && (
@@ -69,43 +68,46 @@ export default function IndustryPicker({
               value={customIndustry}
               onChange={(e) => onCustomChange(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !loading && onGenerate()}
-              placeholder="例：ゲーム、フィンテック、農業テック …"
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-accent focus:ring-1 focus:ring-accent outline-none"
+              placeholder="例：ゲーム、フィンテック、農業テック…"
+              className="mt-2 w-full border border-paper-border rounded px-3 py-1.5 text-sm bg-paper focus:border-navy-mid focus:ring-1 focus:ring-navy-mid outline-none"
             />
           )}
         </div>
 
-        {/* レベル */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            レベル
-          </label>
-          <div className="flex flex-wrap gap-2">
+        {/* レベル + 生成ボタン */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-1">
+            <span className="text-2xs text-ink-faint uppercase tracking-wider mr-1">レベル</span>
             {LEVELS.map((l) => (
               <button
                 key={l}
                 type="button"
                 onClick={() => onLevelChange(l)}
-                className={`px-3 py-1.5 rounded-lg text-sm border transition ${
+                className={`px-2.5 py-1 rounded text-xs font-medium border transition-all ${
                   level === l
-                    ? "bg-slate-800 text-white border-slate-800"
-                    : "bg-white text-slate-700 border-slate-300 hover:border-slate-500"
+                    ? "bg-ink text-white border-ink"
+                    : "bg-paper text-ink-muted border-paper-border hover:border-ink-mid hover:text-ink"
                 }`}
               >
                 {l}
               </button>
             ))}
           </div>
-        </div>
 
-        <button
-          type="button"
-          onClick={onGenerate}
-          disabled={loading}
-          className="w-full bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg px-4 py-2.5 transition"
-        >
-          {loading ? "検索中…" : "ブリーフィングを生成"}
-        </button>
+          <button
+            type="button"
+            onClick={onGenerate}
+            disabled={loading}
+            className="ml-auto flex items-center gap-1.5 bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded px-4 py-2 transition-colors uppercase tracking-wide"
+          >
+            {loading ? (
+              <>
+                <span className="inline-block h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                検索中
+              </>
+            ) : "生成"}
+          </button>
+        </div>
       </div>
     </div>
   );
