@@ -3,6 +3,7 @@ import type { Config } from "tailwindcss";
 const config: Config = {
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./lib/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
@@ -36,6 +37,8 @@ const config: Config = {
           muted: "#4A6FA5",
           surface: "#162032",
         },
+        pos: { DEFAULT: "#15803D", soft: "#F0FDF4" },
+        neg: { DEFAULT: "#C62828", soft: "#FDF0F0" },
       },
       fontFamily: {
         sans: [
