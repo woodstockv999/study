@@ -1,6 +1,8 @@
 "use client";
 
-import { PRESET_INDUSTRIES, LEVELS, type Level } from "@/lib/prompts";
+import { TECH_CATEGORIES, LEVELS, type Level } from "@/lib/prompts";
+
+export const CUSTOM = "__custom__";
 
 interface Props {
   industry: string;
@@ -12,8 +14,6 @@ interface Props {
   onLevelChange: (v: Level) => void;
   onGenerate: () => void;
 }
-
-const CUSTOM = "__custom__";
 
 export default function IndustryPicker({
   industry,
@@ -30,24 +30,25 @@ export default function IndustryPicker({
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm">
       <div className="space-y-4">
-        {/* 業界 */}
+        {/* カテゴリ */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">
-            業界
+            カテゴリ
           </label>
           <div className="flex flex-wrap gap-2">
-            {PRESET_INDUSTRIES.map((p) => (
+            {TECH_CATEGORIES.map((c) => (
               <button
-                key={p}
+                key={c.id}
                 type="button"
-                onClick={() => onIndustryChange(p)}
+                onClick={() => onIndustryChange(c.label)}
+                title={c.description}
                 className={`px-3 py-1.5 rounded-full text-sm border transition ${
-                  industry === p
+                  industry === c.label
                     ? "bg-accent text-white border-accent"
                     : "bg-white text-slate-700 border-slate-300 hover:border-accent"
                 }`}
               >
-                {p}
+                {c.label}
               </button>
             ))}
             <button
@@ -59,7 +60,7 @@ export default function IndustryPicker({
                   : "bg-white text-slate-700 border-slate-300 hover:border-accent"
               }`}
             >
-              その他（自由入力）
+              その他
             </button>
           </div>
           {isCustom && (
@@ -67,7 +68,8 @@ export default function IndustryPicker({
               type="text"
               value={customIndustry}
               onChange={(e) => onCustomChange(e.target.value)}
-              placeholder="例：宇宙、農業、半導体製造装置 …"
+              onKeyDown={(e) => e.key === "Enter" && !loading && onGenerate()}
+              placeholder="例：ゲーム、フィンテック、農業テック …"
               className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-accent focus:ring-1 focus:ring-accent outline-none"
             />
           )}
@@ -96,7 +98,6 @@ export default function IndustryPicker({
           </div>
         </div>
 
-        {/* 生成 */}
         <button
           type="button"
           onClick={onGenerate}
@@ -109,5 +110,3 @@ export default function IndustryPicker({
     </div>
   );
 }
-
-export { CUSTOM };

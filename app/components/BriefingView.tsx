@@ -4,24 +4,23 @@ import { useState } from "react";
 import Markdown from "./Markdown";
 import type { Level } from "@/lib/prompts";
 import { postStream } from "@/lib/config";
+import type { BriefingRecord } from "@/lib/storage";
 
 interface Props {
-  industry: string;
-  level: Level;
-  date: string;
-  text: string;
+  record: BriefingRecord;
   onStartQuiz: () => void;
   quizLoading: boolean;
+  onToggleStar: () => void;
 }
 
 export default function BriefingView({
-  industry,
-  level,
-  date,
-  text,
+  record,
   onStartQuiz,
   quizLoading,
+  onToggleStar,
 }: Props) {
+  const { industry, level, date, text, starred } = record;
+
   const [term, setTerm] = useState("");
   const [deepResult, setDeepResult] = useState("");
   const [deepLoading, setDeepLoading] = useState(false);
@@ -48,12 +47,23 @@ export default function BriefingView({
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-sm">
+      {/* メタ情報ヘッダー */}
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mb-3">
         <span className="px-2 py-0.5 rounded-full bg-accent-soft text-accent font-medium">
           {industry}
         </span>
         <span className="px-2 py-0.5 rounded-full bg-slate-100">{level}</span>
         <span>{new Date(date).toLocaleString("ja-JP")}</span>
+        <button
+          type="button"
+          onClick={onToggleStar}
+          title={starred ? "スターを外す" : "スターを付ける"}
+          className={`ml-auto text-base transition ${
+            starred ? "text-yellow-400" : "text-slate-300 hover:text-yellow-400"
+          }`}
+        >
+          {starred ? "★" : "☆"}
+        </button>
       </div>
 
       <Markdown>{text}</Markdown>
@@ -66,14 +76,14 @@ export default function BriefingView({
           disabled={quizLoading}
           className="bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg px-4 py-2 transition"
         >
-          {quizLoading ? "作成中…" : "クイズに挑戦"}
+          {quizLoading ? "作成中…" : "理解度クイズに挑戦"}
         </button>
       </div>
 
       {/* 用語の深掘り */}
       <div className="mt-5 pt-4 border-t border-slate-200">
         <label className="block text-sm font-medium text-slate-700 mb-2">
-          用語の深掘り
+          用語・キーワードを深掘り
         </label>
         <div className="flex gap-2">
           <input

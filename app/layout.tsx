@@ -2,9 +2,9 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "業界ブリーフィング Bot",
+  title: "IT ニュース ブリーフィング",
   description:
-    "担当業界のトレンド・用語・論点を毎日5分でキャッチアップする個人用ブリーフィングアプリ。",
+    "AI・テック・DXの最新動向を毎日5分でキャッチアップ。日経クロステック代替の個人用ブリーフィングアプリ。",
 };
 
 export const viewport: Viewport = {
