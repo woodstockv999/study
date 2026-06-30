@@ -1,121 +1,322 @@
-import { getRssItems } from "@/lib/rss";
-import { getFilings, getDashboardStats } from "@/lib/edinet";
-import { formatPubDate } from "@/lib/format";
-import SectionHeader from "@/components/SectionHeader";
-import StatCard from "@/components/StatCard";
-import FilingRow from "@/components/FilingRow";
-import Link from "next/link";
-import type { RssItem } from "@/lib/types";
-import NewsRefreshButton from "./components/NewsRefreshButton";
+"use client";
 
-export const revalidate = 0;
+import { useEffect, useRef, useState } from "react";
+import IndustryPicker, { CUSTOM } from "./components/IndustryPicker";
+import BriefingView from "./components/BriefingView";
+import Quiz from "./components/Quiz";
+import HistorySidebar from "./components/HistorySidebar";
+import MorningMode from "./components/MorningMode";
+import SpotlightMode from "./components/SpotlightMode";
+import WeeklyMode from "./components/WeeklyMode";
+import type { QuizQuestion } from "./api/quiz/route";
+import { type Level } from "@/lib/prompts";
+import { startJob, pollJob } from "@/lib/config";
+import {
+  addBriefing,
+  deleteBriefing,
+  loadHistory,
+  loadSettings,
+  saveSettings,
+  toggleStar,
+  type BriefingRecord,
+} from "@/lib/storage";
 
-const SOURCE_LABEL: Record<string, string> = {
-  "NHK経済": "経済",
-  "NHK社会": "社会",
-  "NHK国際": "国際",
-  "ITmedia": "テック",
-  "GIGAZINE": "テック",
-  "Reuters": "ビジネス",
-};
+type Tab = "morning" | "category" | "spotlight" | "weekly";
 
-export default async function NewsPage() {
-  const [rss, filings, stats] = await Promise.all([
-    getRssItems().catch(() => ({ items: [] as RssItem[], fetchedAt: new Date().toISOString() })),
-    getFilings(new Date().toISOString().slice(0, 10)).catch(() => []),
-    getDashboardStats().catch(() => null),
-  ]);
+const PENDING_JOB_KEY = "briefing.pending_job.v1";
+interface PendingJob { jobId: string; industry: string; level: Level }
 
-  const hasSummaries = rss.items.some((i) => i.summary);
+const QUIZ_PENDING_JOB_KEY = "quiz.pending_job.v1";
+interface PendingQuizJob { jobId: string; briefingId: string }
 
-  // ソース別にグループ化
-  const bySource = new Map<string, RssItem[]>();
-  for (const item of rss.items) {
-    const list = bySource.get(item.source) ?? [];
-    list.push(item);
-    bySource.set(item.source, list);
+const TABS: { id: Tab; label: string; short: string }[] = [
+  { id: "morning",  label: "今日のブリーフ", short: "今日" },
+  { id: "category", label: "テーマ深掘り",   short: "深掘り" },
+  { id: "spotlight",label: "企業・業界リサーチ", short: "リサーチ" },
+  { id: "weekly",   label: "週次まとめ",     short: "週次" },
+];
+
+export default function Home() {
+  const [tab, setTab] = useState<Tab>("morning");
+  const [industry, setIndustry] = useState<string>("AI・生成AI");
+  const [customIndustry, setCustomIndustry] = useState("");
+  const [level, setLevel] = useState<Level>("エグゼクティブ");
+  const [current, setCurrent] = useState<BriefingRecord | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [quiz, setQuiz] = useState<QuizQuestion[] | null>(null);
+  const [quizError, setQuizError] = useState("");
+  const [history, setHistory] = useState<BriefingRecord[]>([]);
+
+  const pollAbortRef = useRef<AbortController | null>(null);
+  const quizPollAbortRef = useRef<AbortController | null>(null);
+
+  function refreshHistory() { setHistory(loadHistory()); }
+
+  useEffect(() => {
+    const hist = loadHistory();
+    setHistory(hist);
+    const s = loadSettings();
+    if (s) {
+      setIndustry(s.industry);
+      setCustomIndustry(s.customIndustry);
+      setLevel(s.level);
+    }
+
+    const cleanups: Array<() => void> = [];
+
+    const raw = localStorage.getItem(PENDING_JOB_KEY);
+    if (raw) {
+      let pending: PendingJob | null = null;
+      try { pending = JSON.parse(raw); } catch { localStorage.removeItem(PENDING_JOB_KEY); }
+      if (pending) {
+        const p = pending;
+        setTab("category"); setIndustry(p.industry); setLevel(p.level); setLoading(true);
+        const controller = new AbortController();
+        pollAbortRef.current = controller;
+        pollJob<{ text: string }>("/api/briefing/status", p.jobId, controller.signal)
+          .then((data) => {
+            localStorage.removeItem(PENDING_JOB_KEY);
+            const next = addBriefing({ industry: p.industry, level: p.level, text: data.text });
+            setHistory(next); setCurrent(next[0]);
+          })
+          .catch((e: any) => { if (e?.name === "AbortError") return; localStorage.removeItem(PENDING_JOB_KEY); setError(e.message); })
+          .finally(() => setLoading(false));
+        cleanups.push(() => controller.abort());
+      }
+    }
+
+    const quizRaw = localStorage.getItem(QUIZ_PENDING_JOB_KEY);
+    if (quizRaw) {
+      let qPending: PendingQuizJob | null = null;
+      try { qPending = JSON.parse(quizRaw); } catch { localStorage.removeItem(QUIZ_PENDING_JOB_KEY); }
+      if (qPending) {
+        const q = qPending;
+        const target = hist.find((r) => r.id === q.briefingId);
+        if (target) { setTab("category"); setCurrent(target); }
+        setQuizLoading(true);
+        const controller = new AbortController();
+        quizPollAbortRef.current = controller;
+        pollJob<{ questions: QuizQuestion[] }>("/api/quiz/status", q.jobId, controller.signal)
+          .then((data) => { localStorage.removeItem(QUIZ_PENDING_JOB_KEY); setQuiz(data.questions); })
+          .catch((e: any) => { if (e?.name === "AbortError") return; localStorage.removeItem(QUIZ_PENDING_JOB_KEY); setQuizError(e.message); })
+          .finally(() => setQuizLoading(false));
+        cleanups.push(() => controller.abort());
+      }
+    }
+    return () => cleanups.forEach((fn) => fn());
+  }, []);
+
+  useEffect(() => { saveSettings({ industry, customIndustry, level }); }, [industry, customIndustry, level]);
+
+  function resolvedIndustry() { return industry === CUSTOM ? customIndustry.trim() : industry; }
+
+  async function generate() {
+    const ind = resolvedIndustry();
+    if (!ind) { setError("カテゴリを選択または入力してください。"); return; }
+    pollAbortRef.current?.abort();
+    const controller = new AbortController();
+    pollAbortRef.current = controller;
+    setLoading(true); setError(""); setQuiz(null); setQuizError(""); setCurrent(null);
+    try {
+      const jobId = await startJob("/api/briefing", { industry: ind, level });
+      localStorage.setItem(PENDING_JOB_KEY, JSON.stringify({ jobId, industry: ind, level } satisfies PendingJob));
+      const data = await pollJob<{ text: string }>("/api/briefing/status", jobId, controller.signal);
+      localStorage.removeItem(PENDING_JOB_KEY);
+      const next = addBriefing({ industry: ind, level, text: data.text });
+      setHistory(next); setCurrent(next[0]);
+    } catch (e: any) {
+      if (e?.name === "AbortError") return;
+      localStorage.removeItem(PENDING_JOB_KEY); setError(e.message);
+    } finally { setLoading(false); }
   }
-  const sources = Array.from(bySource.entries());
+
+  async function startQuiz() {
+    if (!current) return;
+    quizPollAbortRef.current?.abort();
+    const controller = new AbortController();
+    quizPollAbortRef.current = controller;
+    setQuizLoading(true); setQuizError(""); setQuiz(null);
+    try {
+      const jobId = await startJob("/api/quiz", { briefing: current.text });
+      localStorage.setItem(QUIZ_PENDING_JOB_KEY, JSON.stringify({ jobId, briefingId: current.id } satisfies PendingQuizJob));
+      const data = await pollJob<{ questions: QuizQuestion[] }>("/api/quiz/status", jobId, controller.signal);
+      localStorage.removeItem(QUIZ_PENDING_JOB_KEY); setQuiz(data.questions);
+    } catch (e: any) {
+      if (e?.name === "AbortError") return;
+      localStorage.removeItem(QUIZ_PENDING_JOB_KEY); setQuizError(e.message);
+    } finally { setQuizLoading(false); }
+  }
+
+  function handleToggleStar() {
+    if (!current) return;
+    const next = toggleStar(current.id);
+    setHistory(next);
+    const updated = next.find((r) => r.id === current.id);
+    if (updated) setCurrent(updated);
+  }
+
+  function selectHistory(rec: BriefingRecord) {
+    setCurrent(rec); setQuiz(null); setQuizError(""); setError(""); setTab("category");
+  }
+
+  function removeHistory(id: string) {
+    const next = deleteBriefing(id);
+    setHistory(next);
+    if (current?.id === id) setCurrent(null);
+  }
+
+  const today = new Date().toLocaleDateString("ja-JP", {
+    year: "numeric", month: "long", day: "numeric", weekday: "short",
+  });
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 space-y-8">
-      {/* ニュース */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
+    <div className="min-h-screen bg-paper font-sans">
+      {/* ─── ヘッダー + タブナビ（ダークネイビー） ─── */}
+      <div className="bg-navy sticky top-0 z-20">
+        {/* ロゴ行 */}
+        <div className="max-w-5xl mx-auto px-4 pt-3 pb-2 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <span className="w-0.5 h-4 bg-accent rounded-sm" />
-            <div>
-              <h2 className="text-sm font-bold text-ink uppercase tracking-wide">カテゴリ別最新ニュース</h2>
-              {rss.fetchedAt && <p className="text-xs text-ink-muted">取得: {formatPubDate(rss.fetchedAt)}</p>}
-            </div>
+            <span className="w-1 h-5 bg-accent rounded-sm block" />
+            <h1 className="text-sm font-bold text-white tracking-tight">
+              コンサルタント ブリーフィング
+            </h1>
           </div>
-          <NewsRefreshButton hasSummaries={hasSummaries} />
+          <span className="text-2xs text-navy-muted hidden sm:block tabular-nums">
+            {today}
+          </span>
         </div>
-
-        {sources.length === 0 ? (
-          <p className="text-center py-12 text-ink-muted text-sm">RSSを読み込めませんでした。「更新」で再試行。</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sources.map(([source, items]) => (
-              <CategorySection key={source} source={source} items={items} />
-            ))}
-          </div>
-        )}
+        {/* タブ行 */}
+        <div className="max-w-5xl mx-auto px-4 flex overflow-x-auto">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={`relative shrink-0 px-4 py-2.5 text-xs font-medium tracking-wide uppercase transition-colors ${
+                tab === t.id
+                  ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-accent after:rounded-t"
+                  : "text-navy-muted hover:text-white/80"
+              }`}
+            >
+              <span className="hidden sm:inline">{t.label}</span>
+              <span className="sm:hidden">{t.short}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* EDINET */}
-      {stats && (
-        <div>
-          <SectionHeader title="本日の開示状況" sub={stats.date} />
-          <div className="grid grid-cols-3 gap-3 mb-6">
-            <StatCard label="総開示件数" value={stats.totalFilings.toLocaleString()} sub="本日" />
-            <StatCard label="有価証券報告書" value={stats.annualReports} sub="年次決算" />
-            <StatCard label="四半期報告書" value={stats.quarterlyReports} sub="四半期" />
-          </div>
-          <div className="bg-paper-surface border border-paper-border rounded-lg overflow-hidden">
-            <div className="bg-navy px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-2"><span className="w-0.5 h-4 bg-accent rounded-sm" /><span className="text-xs font-bold text-white uppercase tracking-wider">最新開示書類</span></div>
-              <Link href="/search" className="text-2xs text-navy-muted hover:text-white transition-colors">企業検索 →</Link>
-            </div>
-            <div className="divide-y divide-paper-border px-3">
-              {filings.slice(0, 8).map((f) => <FilingRow key={f.docID} filing={f} />)}
-            </div>
-          </div>
+      {/* ─── メインコンテンツ ─── */}
+      <main className="max-w-5xl mx-auto px-4 py-5 grid grid-cols-1 lg:grid-cols-[1fr_240px] gap-5">
+        <div className="min-w-0 space-y-5">
+
+          {tab === "morning" && (
+            <MorningMode
+              onHistoryUpdated={refreshHistory}
+              onSelectRecord={(rec) => { setCurrent(rec); setQuiz(null); setTab("category"); }}
+            />
+          )}
+
+          {tab === "category" && (
+            <>
+              <IndustryPicker
+                industry={industry}
+                customIndustry={customIndustry}
+                level={level}
+                loading={loading}
+                onIndustryChange={setIndustry}
+                onCustomChange={setCustomIndustry}
+                onLevelChange={setLevel}
+                onGenerate={generate}
+              />
+
+              {error && (
+                <div className="border border-accent-border bg-accent-soft rounded-lg px-4 py-3 text-sm text-accent flex items-center justify-between gap-3">
+                  <span>{error}</span>
+                  <button
+                    type="button"
+                    onClick={generate}
+                    className="shrink-0 bg-accent hover:bg-accent-hover text-white text-xs font-medium rounded px-3 py-1.5 transition"
+                  >
+                    再試行
+                  </button>
+                </div>
+              )}
+
+              {loading && <LoadingSkeleton />}
+
+              {current && !loading && (
+                <BriefingView
+                  record={current}
+                  onStartQuiz={startQuiz}
+                  quizLoading={quizLoading}
+                  onToggleStar={handleToggleStar}
+                />
+              )}
+
+              {quizError && (
+                <div className="border border-accent-border bg-accent-soft rounded-lg px-4 py-3 text-sm text-accent">
+                  {quizError}
+                </div>
+              )}
+
+              {quiz && <Quiz questions={quiz} onClose={() => setQuiz(null)} />}
+
+              {!current && !loading && !error && <EmptyState />}
+            </>
+          )}
+
+          {tab === "spotlight" && <SpotlightMode onHistoryUpdated={refreshHistory} />}
+          {tab === "weekly" && <WeeklyMode onHistoryUpdated={refreshHistory} />}
         </div>
-      )}
+
+        <aside className="lg:sticky lg:top-[88px] self-start">
+          <HistorySidebar
+            records={history}
+            activeId={current?.id ?? null}
+            onSelect={selectHistory}
+            onDelete={removeHistory}
+          />
+        </aside>
+      </main>
+
+      <footer className="max-w-5xl mx-auto px-4 py-6 border-t border-paper-border mt-4">
+        <p className="text-2xs text-ink-faint text-center tracking-wide">
+          個人用ツール — 履歴はこのブラウザの localStorage にのみ保存されます
+        </p>
+      </footer>
     </div>
   );
 }
 
-function CategorySection({ source, items }: { source: string; items: RssItem[] }) {
-  const label = SOURCE_LABEL[source] ?? source;
+function LoadingSkeleton() {
   return (
-    <div className="bg-paper-surface border border-paper-border rounded-lg overflow-hidden">
-      <div className="bg-navy px-3 py-2.5 flex items-center gap-2">
-        <span className="w-0.5 h-3.5 bg-accent rounded-sm" />
-        <span className="text-xs font-bold text-white tracking-wide">{source}</span>
-        <span className="ml-auto text-2xs text-navy-muted bg-navy-surface px-1.5 py-0.5 rounded">{label}</span>
+    <div className="bg-paper-surface border border-paper-border rounded-lg p-5 space-y-4">
+      <div className="flex items-center gap-2 mb-1">
+        <div className="skeleton h-3 w-16" />
+        <div className="skeleton h-3 w-12" />
       </div>
-      <div className="divide-y divide-paper-border">
-        {items.slice(0, 6).map((item) => <NewsRow key={item.id} item={item} />)}
+      <div className="skeleton h-4 w-2/3" />
+      <div className="space-y-2 pt-2">
+        <div className="skeleton h-3 w-full" />
+        <div className="skeleton h-3 w-11/12" />
+        <div className="skeleton h-3 w-4/5" />
       </div>
+      <div className="space-y-2 pt-2">
+        <div className="skeleton h-3 w-full" />
+        <div className="skeleton h-3 w-10/12" />
+      </div>
+      <p className="text-xs text-ink-faint pt-1">Web 検索中…数十秒かかることがあります</p>
     </div>
   );
 }
 
-function NewsRow({ item }: { item: RssItem }) {
+function EmptyState() {
   return (
-    <a href={item.link} target="_blank" rel="noopener noreferrer"
-      className="group flex flex-col gap-1 px-3 py-2.5 hover:bg-paper transition-colors">
-      <p className="text-xs font-medium text-ink group-hover:text-navy-mid transition-colors leading-snug line-clamp-2">
-        {item.title}
-      </p>
-      <div className="flex items-center gap-2">
-        <span className="text-2xs text-ink-faint tabular-nums">{formatPubDate(item.pubDate)}</span>
-        {(item.importance ?? 0) >= 4 && (
-          <span className="text-2xs bg-accent text-white rounded-full px-1.5 py-0.5 font-bold leading-none">速報</span>
-        )}
-      </div>
-    </a>
+    <div className="border border-paper-border border-dashed rounded-lg py-16 text-center">
+      <p className="text-3xl mb-3 opacity-40">📰</p>
+      <p className="text-sm text-ink-muted">カテゴリとレベルを選んで生成してください</p>
+    </div>
   );
 }

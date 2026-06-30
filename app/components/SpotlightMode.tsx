@@ -5,10 +5,21 @@ import { startJob, pollJob } from "@/lib/config";
 import { addBriefing } from "@/lib/storage";
 import Markdown from "./Markdown";
 
-const QUICK_PICKS = [
+const COMPANY_PICKS = [
   "NVIDIA", "OpenAI", "Microsoft", "Google", "Amazon",
   "Apple", "Meta", "Anthropic", "TSMC", "SoftBank",
   "トヨタ", "ソニー", "NTT", "富士通", "日立",
+];
+
+const INDUSTRY_PICKS = [
+  "日本の製造業",
+  "国内金融・銀行業界",
+  "小売・EC業界",
+  "ヘルスケア・製薬業界",
+  "エネルギー・脱炭素",
+  "物流・サプライチェーン",
+  "総合商社",
+  "不動産・建設",
 ];
 
 interface Props {
@@ -44,7 +55,7 @@ export default function SpotlightMode({ onHistoryUpdated }: Props) {
       <div className="bg-paper-surface border border-paper-border rounded-lg overflow-hidden">
         <div className="bg-navy px-4 py-2.5 flex items-center gap-2">
           <span className="w-0.5 h-3.5 bg-accent rounded-sm block" />
-          <span className="text-2xs font-bold text-white uppercase tracking-widest">企業追跡</span>
+          <span className="text-2xs font-bold text-white uppercase tracking-widest">企業・業界リサーチ</span>
         </div>
 
         <div className="p-4 space-y-3">
@@ -69,11 +80,28 @@ export default function SpotlightMode({ onHistoryUpdated }: Props) {
             </button>
           </div>
 
-          {/* クイックピック */}
+          {/* クイックピック - 企業 */}
           <div>
-            <p className="text-2xs text-ink-faint uppercase tracking-wider mb-2">よく調べられる企業</p>
+            <p className="text-2xs text-ink-faint uppercase tracking-wider mb-2">主要企業</p>
             <div className="flex flex-wrap gap-1.5">
-              {QUICK_PICKS.map((name) => (
+              {COMPANY_PICKS.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => search(name)}
+                  disabled={loading}
+                  className="px-2 py-0.5 rounded text-2xs border border-paper-border text-ink-mid hover:border-navy-mid hover:text-navy disabled:opacity-40 transition-colors bg-paper"
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* クイックピック - 業界 */}
+          <div>
+            <p className="text-2xs text-ink-faint uppercase tracking-wider mb-2">業界・セクター</p>
+            <div className="flex flex-wrap gap-1.5">
+              {INDUSTRY_PICKS.map((name) => (
                 <button
                   key={name}
                   type="button"

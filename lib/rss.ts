@@ -3,12 +3,18 @@ import type { RssItem, RssCache } from "./types";
 import { readCache, writeCache, isFresh } from "./cache";
 
 export const RSS_FEEDS = [
-  { url: "https://www3.nhk.or.jp/rss/news/cat6.xml",            source: "NHK経済" },
-  { url: "https://www3.nhk.or.jp/rss/news/cat5.xml",            source: "NHK社会" },
-  { url: "https://www3.nhk.or.jp/rss/news/cat9.xml",            source: "NHK国際" },
-  { url: "https://rss.itmedia.co.jp/rss/2.0/itmedia_news.xml",  source: "ITmedia" },
-  { url: "https://gigazine.net/news/rss_2.0/",                   source: "GIGAZINE" },
-  { url: "https://feeds.reuters.com/reuters/JPbusinessNews",     source: "Reuters" },
+  // 経済・ビジネス
+  { url: "https://www3.nhk.or.jp/rss/news/cat6.xml",                    source: "NHK経済" },
+  { url: "https://www3.nhk.or.jp/rss/news/cat9.xml",                    source: "NHK国際" },
+  { url: "https://feeds.reuters.com/reuters/JPbusinessNews",             source: "Reuters" },
+  { url: "https://toyokeizai.net/list/feed/rss",                        source: "東洋経済" },
+  { url: "https://diamond.jp/feed/category/dol-articles",               source: "Diamond" },
+  { url: "https://www.nikkei.com/news/category/?bn=1",                  source: "日経" },
+  // テクノロジー
+  { url: "https://rss.itmedia.co.jp/rss/2.0/itmedia_news.xml",         source: "ITmedia" },
+  { url: "https://gigazine.net/news/rss_2.0/",                          source: "GIGAZINE" },
+  // 政策・規制
+  { url: "https://www3.nhk.or.jp/rss/news/cat4.xml",                    source: "NHK政治" },
 ];
 
 const CACHE_KEY = "rss/items";

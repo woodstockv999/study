@@ -30,8 +30,8 @@ function extractTopNews(text: string): string {
 }
 
 export default function MorningMode({ onHistoryUpdated, onSelectRecord }: Props) {
-  const [selectedCats, setSelectedCats] = useState<string[]>(["AI・生成AI", "セキュリティ", "クラウド・インフラ"]);
-  const [level, setLevel] = useState<Level>("実務");
+  const [selectedCats, setSelectedCats] = useState<string[]>(["経営戦略・M&A", "AI・生成AI", "マクロ経済・金融"]);
+  const [level, setLevel] = useState<Level>("エグゼクティブ");
   const [jobs, setJobs] = useState<MorningJob[]>([]);
   const [running, setRunning] = useState(false);
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
