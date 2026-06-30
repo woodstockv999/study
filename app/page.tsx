@@ -178,6 +178,12 @@ export default function Home() {
         {/* ロゴ行 */}
         <div className="max-w-5xl mx-auto px-4 pt-3 pb-2 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
+            <a
+              href="/"
+              className="shrink-0 text-2xs text-navy-muted transition-colors hover:text-white/80"
+            >
+              ← ポータルへ
+            </a>
             <span className="w-1 h-5 bg-accent rounded-sm block" />
             <h1 className="text-sm font-bold text-white tracking-tight">
               コンサルタント ブリーフィング
