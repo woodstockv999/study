@@ -49,8 +49,6 @@ export default function Nav() {
                 </>
               )}
             </div>
-            <span className="w-1 h-5 bg-accent rounded-sm" />
-            <Link href="/" className="text-sm font-bold text-white tracking-tight">InfoHub</Link>
           </div>
           <span className="text-2xs text-navy-muted hidden sm:block">ニュース × EDINET</span>
         </div>
