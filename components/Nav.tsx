@@ -56,34 +56,42 @@ export default function Nav() {
         </div>
       </header>
       <div className="bg-navy max-w-6xl mx-auto px-4 pb-4 pt-1 flex flex-col gap-2">
-        {LINKS.map((l) => (
-          <Link
-            key={l.href}
-            href={l.href}
-            className={`group flex items-center gap-3.5 rounded-2xl border px-3.5 py-3 transition-all ${
-              active(l.href)
-                ? "border-white/25 bg-white/[0.06]"
-                : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.05] hover:-translate-y-px"
-            }`}
-          >
-            <span
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl"
-              style={{ background: `color-mix(in srgb, ${l.color} 18%, transparent)` }}
+        {LINKS.map((l) => {
+          const isActive = active(l.href);
+          return (
+            <Link
+              key={l.href}
+              href={l.href}
+              aria-current={isActive ? "page" : undefined}
+              className={`group flex items-center gap-3.5 rounded-2xl border px-3.5 py-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
+                isActive
+                  ? "border-accent/40 bg-accent/[0.07]"
+                  : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.05] hover:-translate-y-px"
+              }`}
             >
-              {l.icon}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold text-white">{l.label}</span>
-              <span className="block truncate text-xs text-navy-muted">{l.desc}</span>
-            </span>
-            <svg
-              className="shrink-0 text-navy-muted/60 transition-colors group-hover:text-navy-muted"
-              width="7" height="12" viewBox="0 0 7 12" fill="none"
-            >
-              <path d="M1 1l5 5-5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </Link>
-        ))}
+              <span
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl"
+                style={{ background: `color-mix(in srgb, ${l.color} 18%, transparent)` }}
+              >
+                {l.icon}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-white">{l.label}</span>
+                <span className="block truncate text-xs text-navy-muted">{l.desc}</span>
+              </span>
+              {isActive ? (
+                <span className="shrink-0 text-2xs font-semibold text-accent tracking-wide">現在地</span>
+              ) : (
+                <svg
+                  className="shrink-0 text-navy-muted/60 transition-colors group-hover:text-navy-muted"
+                  width="7" height="12" viewBox="0 0 7 12" fill="none"
+                >
+                  <path d="M1 1l5 5-5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </Link>
+          );
+        })}
       </div>
     </>
   );

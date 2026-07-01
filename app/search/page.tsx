@@ -38,7 +38,7 @@ export default function SearchPage() {
           />
           <select
             value={industry} onChange={(e) => setIndustry(e.target.value)}
-            className="px-3 py-2.5 text-sm bg-paper-surface border border-paper-border rounded-lg text-ink focus:outline-none sm:w-48"
+            className="px-3 py-2.5 text-sm bg-paper-surface border border-paper-border rounded-lg text-ink focus:outline-none focus:ring-2 focus:ring-navy-muted/30 sm:w-48"
           >
             <option value="">全業種</option>
             {INDUSTRIES.map((ind) => <option key={ind} value={ind}>{ind}</option>)}

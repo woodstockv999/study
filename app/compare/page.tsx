@@ -63,7 +63,7 @@ export default function ComparePage() {
             </div>
           ))}
           {codes.length < 3 && (
-            <select className="text-xs bg-paper-surface border border-dashed border-paper-border rounded-full px-3 py-1 text-ink-muted focus:outline-none"
+            <select className="text-xs bg-paper-surface border border-dashed border-paper-border rounded-full px-3 py-1 text-ink-muted focus:outline-none focus:ring-2 focus:ring-navy-muted/30"
               value="" onChange={(e) => { if (e.target.value) setCodes((p) => [...p, e.target.value]); }}>
               <option value="">＋ 企業を追加</option>
               {ALL.filter((c) => !codes.includes(c.edinetCode)).map((c) => (
@@ -136,7 +136,7 @@ export default function ComparePage() {
                 <YAxis tick={{ fontSize: 10, fill: "#78716C" }} tickFormatter={(v) => `${v}億`} />
                 <Tooltip formatter={(v: any) => [`${Number(v).toLocaleString()}億円`]} contentStyle={{ background: "#0D1B2A", border: "none", borderRadius: 8, color: "#fff", fontSize: 11 }} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                {valid.map((c, i) => <Bar key={c.edinetCode} dataKey={c.filerName.replace("株式会社","").replace("グループ","G")} fill={COLORS[i]} radius={[2,2,0,0]} opacity={0.85} />)}
+                {valid.map((c, i) => <Bar key={c.edinetCode} dataKey={c.filerName.replace("株式会社","").replace("グループ","G")} fill={COLORS[i]} radius={[2,2,0,0]} opacity={0.85} animationDuration={600} />)}
               </BarChart>
             </ResponsiveContainer>
           </div>

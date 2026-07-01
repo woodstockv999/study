@@ -67,9 +67,12 @@ export default function HistorySidebar({ records, activeId, onSelect, onDelete }
       {/* 履歴リスト */}
       <div className="divide-y divide-paper-border max-h-[70vh] overflow-y-auto">
         {filtered.length === 0 ? (
-          <p className="px-4 py-6 text-xs text-ink-faint text-center">
-            {filter === "starred" ? "スター付きがありません" : "まだ履歴がありません"}
-          </p>
+          <div className="px-4 py-8 text-center">
+            <p className="text-2xl mb-2 opacity-40">{filter === "starred" ? "★" : "🗂"}</p>
+            <p className="text-xs text-ink-faint">
+              {filter === "starred" ? "スター付きがありません" : "まだ履歴がありません"}
+            </p>
+          </div>
         ) : (
           groups.map(([date, recs]) => (
             <div key={date}>
