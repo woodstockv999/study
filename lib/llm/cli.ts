@@ -10,7 +10,7 @@ import type { GenerateOptions } from "./types";
 // ─────────────────────────────────────────────────────────────
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || "claude";
-const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-4-6";
+const MODEL = process.env.CLAUDE_MODEL || "claude-haiku-4-5-20251001";
 // Web 検索を伴うと数十秒かかるため長めのタイムアウト
 const TIMEOUT_MS = Number(process.env.CLAUDE_CLI_TIMEOUT_MS || 240_000);
 
