@@ -1,11 +1,19 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getRssItems } from "@/lib/rss";
 import { writeCache, readCache } from "@/lib/cache";
 import { generate } from "@/lib/llm";
 import { buildRssSummaryPrompt } from "@/lib/prompts";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import type { RssCache, RssItem } from "@/lib/types";
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  if (!checkRateLimit(getClientIp(req))) {
+    return NextResponse.json(
+      { error: "リクエストが多すぎます。しばらくしてから再試行してください。" },
+      { status: 429 }
+    );
+  }
+
   try {
     const rss = await getRssItems();
     const unsummarized = rss.items.filter((i) => !i.summary).slice(0, 20);

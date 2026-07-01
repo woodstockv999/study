@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { generate } from "@/lib/llm";
 import { buildQuizPrompt } from "@/lib/prompts";
 import { createJob, resolveJob, rejectJob } from "@/lib/jobs";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 export const maxDuration = 120;
 export const runtime = "nodejs";
@@ -26,6 +27,13 @@ function extractJson(raw: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  if (!checkRateLimit(getClientIp(req))) {
+    return NextResponse.json(
+      { error: "リクエストが多すぎます。しばらくしてから再試行してください。" },
+      { status: 429 }
+    );
+  }
+
   const { briefing } = (await req.json()) as { briefing?: string };
   if (!briefing) {
     return NextResponse.json(

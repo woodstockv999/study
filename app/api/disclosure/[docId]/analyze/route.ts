@@ -4,6 +4,7 @@ import { writeCache } from "@/lib/cache";
 import { generate } from "@/lib/llm";
 import { buildDisclosurePrompt } from "@/lib/prompts";
 import { createJob, resolveJob, rejectJob, getJob } from "@/lib/jobs";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import type { DisclosureCache } from "@/lib/types";
 
 interface Ctx { params: Promise<{ docId: string }> }
@@ -18,6 +19,13 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 }
 
 export async function POST(req: NextRequest, { params }: Ctx) {
+  if (!checkRateLimit(getClientIp(req))) {
+    return NextResponse.json(
+      { error: "リクエストが多すぎます。しばらくしてから再試行してください。" },
+      { status: 429 }
+    );
+  }
+
   const { docId } = await params;
   const { filerName = "不明", docDescription = docId } = await req.json().catch(() => ({}));
 
