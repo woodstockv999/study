@@ -178,13 +178,6 @@ export default function Home() {
         {/* ロゴ行 */}
         <div className="max-w-5xl mx-auto px-4 pt-3 pb-2 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="flex items-center gap-1.5 shrink-0 text-2xs">
-              <a href="/" className="text-navy-muted transition-colors hover:text-white/80" title="アプリ一覧へ戻る">
-                🏠 ポータル
-              </a>
-              <span className="text-navy-muted/50">›</span>
-              <span className="text-white font-semibold">📰 PULSE</span>
-            </div>
             <span className="w-1 h-5 bg-accent rounded-sm block" />
             <h1 className="text-sm font-bold text-white tracking-tight">
               コンサルタント ブリーフィング
