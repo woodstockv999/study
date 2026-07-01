@@ -34,7 +34,7 @@ export default function Nav() {
   return (
     <>
       <header className="bg-navy sticky top-0 z-30 shadow-lg">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="flex items-center gap-1.5 text-2xs">
               <a href="/" className="text-navy-muted transition-colors hover:text-white/80" title="アプリ一覧へ戻る">
