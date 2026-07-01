@@ -3,11 +3,21 @@ import path from "path";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 
+function sanitizeSegment(segment: string): string {
+  return segment.replace(/[^a-zA-Z0-9_\-]/g, "_");
+}
+
 function keyToPath(key: string): string {
-  const parts = key.split("/");
-  const dir = parts.slice(0, -1).join("/");
-  const file = parts[parts.length - 1].replace(/[^a-zA-Z0-9_\-]/g, "_");
-  return path.join(DATA_DIR, dir, `${file}.json`);
+  // Sanitize every segment (not just the filename) so a "/" or ".." smuggled
+  // in via a dynamic route param (e.g. disclosure/[docId]) can't escape DATA_DIR.
+  const parts = key.split("/").filter(Boolean).map(sanitizeSegment);
+  const dir = parts.slice(0, -1);
+  const file = parts[parts.length - 1] ?? "cache";
+  const resolved = path.resolve(DATA_DIR, ...dir, `${file}.json`);
+  if (resolved !== DATA_DIR && !resolved.startsWith(DATA_DIR + path.sep)) {
+    throw new Error("Invalid cache key");
+  }
+  return resolved;
 }
 
 export function readCache<T>(key: string): T | null {
