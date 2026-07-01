@@ -29,11 +29,15 @@ interface PendingJob { jobId: string; industry: string; level: Level }
 const QUIZ_PENDING_JOB_KEY = "quiz.pending_job.v1";
 interface PendingQuizJob { jobId: string; briefingId: string }
 
-const TABS: { id: Tab; label: string; short: string }[] = [
-  { id: "morning",  label: "今日のブリーフ", short: "今日" },
-  { id: "category", label: "テーマ深掘り",   short: "深掘り" },
-  { id: "spotlight",label: "企業・業界リサーチ", short: "リサーチ" },
-  { id: "weekly",   label: "週次まとめ",     short: "週次" },
+const TABS: { id: Tab; label: string; short: string; desc: string }[] = [
+  { id: "morning",  label: "今日のブリーフ", short: "今日",
+    desc: "カテゴリを選んで、その日のニュースからブリーフィングを自動生成します。" },
+  { id: "category", label: "テーマ深掘り",   short: "深掘り",
+    desc: "特定の業界・テーマを選び、深掘りしたレポートを生成します。" },
+  { id: "spotlight",label: "企業・業界リサーチ", short: "リサーチ",
+    desc: "個別企業や業界を指定して、リサーチ観点でまとめます。" },
+  { id: "weekly",   label: "週次まとめ",     short: "週次",
+    desc: "直近1週間分の履歴から、週次の振り返りレポートを生成します。" },
 ];
 
 export default function Home() {
@@ -54,6 +58,23 @@ export default function Home() {
 
   function refreshHistory() { setHistory(loadHistory()); }
 
+  // タブ切り替えをURLハッシュに反映（ブックマーク・共有・戻る/進むボタンに対応）
+  function goTab(id: Tab) {
+    setTab(id);
+    window.location.hash = id === "morning" ? "" : id;
+  }
+
+  useEffect(() => {
+    const applyHash = () => {
+      const h = window.location.hash.slice(1) as Tab | "";
+      if (h && TABS.some((t) => t.id === h)) setTab(h);
+      else if (!h) setTab("morning");
+    };
+    applyHash();
+    window.addEventListener("hashchange", applyHash);
+    return () => window.removeEventListener("hashchange", applyHash);
+  }, []);
+
   useEffect(() => {
     const hist = loadHistory();
     setHistory(hist);
@@ -72,7 +93,7 @@ export default function Home() {
       try { pending = JSON.parse(raw); } catch { localStorage.removeItem(PENDING_JOB_KEY); }
       if (pending) {
         const p = pending;
-        setTab("category"); setIndustry(p.industry); setLevel(p.level); setLoading(true);
+        goTab("category"); setIndustry(p.industry); setLevel(p.level); setLoading(true);
         const controller = new AbortController();
         pollAbortRef.current = controller;
         pollJob<{ text: string }>("/api/briefing/status", p.jobId, controller.signal)
@@ -94,7 +115,7 @@ export default function Home() {
       if (qPending) {
         const q = qPending;
         const target = hist.find((r) => r.id === q.briefingId);
-        if (target) { setTab("category"); setCurrent(target); }
+        if (target) { goTab("category"); setCurrent(target); }
         setQuizLoading(true);
         const controller = new AbortController();
         quizPollAbortRef.current = controller;
@@ -158,7 +179,7 @@ export default function Home() {
   }
 
   function selectHistory(rec: BriefingRecord) {
-    setCurrent(rec); setQuiz(null); setQuizError(""); setError(""); setTab("category");
+    setCurrent(rec); setQuiz(null); setQuizError(""); setError(""); goTab("category");
   }
 
   function removeHistory(id: string) {
@@ -190,11 +211,11 @@ export default function Home() {
         {/* タブ行 */}
         <div className="max-w-5xl mx-auto px-4 flex overflow-x-auto">
           {TABS.map((t) => (
-            <button
+            <a
               key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={`relative shrink-0 px-4 py-2.5 text-xs font-medium tracking-wide uppercase transition-colors ${
+              href={t.id === "morning" ? "#" : `#${t.id}`}
+              onClick={(e) => { e.preventDefault(); goTab(t.id); }}
+              className={`relative shrink-0 px-4 py-2.5 text-xs font-medium tracking-wide uppercase transition-colors cursor-pointer ${
                 tab === t.id
                   ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-accent after:rounded-t"
                   : "text-navy-muted hover:text-white/80"
@@ -202,10 +223,15 @@ export default function Home() {
             >
               <span className="hidden sm:inline">{t.label}</span>
               <span className="sm:hidden">{t.short}</span>
-            </button>
+            </a>
           ))}
         </div>
       </div>
+
+      {/* 現在のセクションの概要 */}
+      <p className="max-w-5xl mx-auto px-4 pt-3 text-xs text-ink-faint">
+        {TABS.find((t) => t.id === tab)?.desc}
+      </p>
 
       {/* ─── メインコンテンツ ─── */}
       <main className="max-w-5xl mx-auto px-4 py-5 grid grid-cols-1 lg:grid-cols-[1fr_240px] gap-5">
@@ -214,7 +240,7 @@ export default function Home() {
           {tab === "morning" && (
             <MorningMode
               onHistoryUpdated={refreshHistory}
-              onSelectRecord={(rec) => { setCurrent(rec); setQuiz(null); setTab("category"); }}
+              onSelectRecord={(rec) => { setCurrent(rec); setQuiz(null); goTab("category"); }}
             />
           )}
 

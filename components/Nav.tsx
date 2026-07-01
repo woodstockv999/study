@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const LINKS = [
   { href: "/",          label: "ニュース" },
@@ -9,10 +10,26 @@ const LINKS = [
   { href: "/compare",   label: "企業比較" },
 ];
 
+// page.tsx のタブ(URLハッシュ)と対応するパンくず表示名。"morning"はデフォルトなので表示しない。
+const HASH_LABELS: Record<string, string> = {
+  category: "テーマ深掘り",
+  spotlight: "企業・業界リサーチ",
+  weekly: "週次まとめ",
+};
+
 export default function Nav() {
   const path = usePathname();
   const active = (href: string) =>
     href === "/" ? path === href : path.startsWith(href);
+
+  const [subLabel, setSubLabel] = useState<string | null>(null);
+  useEffect(() => {
+    if (path !== "/") { setSubLabel(null); return; }
+    const read = () => setSubLabel(HASH_LABELS[window.location.hash.slice(1)] ?? null);
+    read();
+    window.addEventListener("hashchange", read);
+    return () => window.removeEventListener("hashchange", read);
+  }, [path]);
 
   return (
     <header className="bg-navy sticky top-0 z-30 shadow-lg">
@@ -23,7 +40,13 @@ export default function Nav() {
               🏠 ポータル
             </a>
             <span className="text-navy-muted/70">›</span>
-            <span className="text-white font-semibold">📰 PULSE</span>
+            <span className={subLabel ? "text-navy-muted" : "text-white font-semibold"}>📰 PULSE</span>
+            {subLabel && (
+              <>
+                <span className="text-navy-muted/70">›</span>
+                <span className="text-white font-semibold">{subLabel}</span>
+              </>
+            )}
           </div>
           <span className="w-1 h-5 bg-accent rounded-sm" />
           <Link href="/" className="text-sm font-bold text-white tracking-tight">InfoHub</Link>
